@@ -8,3 +8,23 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Datos, pesos y resultados reales: nunca forman parte del código entregable.
+data/
+runs/
+reports/
+.cache/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.coverage
+htmlcov/
+
+# No versionar credenciales de Kaggle/Hugging Face.
+.env
+.env.*
+kaggle.json
+access_token
+*.pt
+*.pth
+*.safetensors
