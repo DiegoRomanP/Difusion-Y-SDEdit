@@ -10,7 +10,8 @@ diagnósticos y gráficos comparativos.
 modelos** durante su elaboración. No se descargaron aquí imágenes ni pesos del
 modelo. No hay resultados reales ni un ganador supuesto. Las pruebas usan CPU y
 fixtures sintéticos; no demuestran calidad, convergencia ni ajuste en la GPU prevista.
-La presentación se prepara en una segunda etapa, después de obtener evidencias.
+La [presentación y el guion](presentacion/README.md) están preparados como versión
+previa a la ejecución; la comparación se completará con evidencias reales.
 
 ## 1. Entorno: trabajar siempre dentro de pc3/
 
@@ -334,5 +335,12 @@ Se describe explícitamente el cambio Huber→MSE y TensorFlow/CelebA→PyTorch/
 La licencia Apache-2.0 del checkpoint no concede derechos adicionales sobre imágenes
 del dataset; revisar sus licencias/procedencia antes de redistribuir o usar comercialmente.
 
-La presentación y el guion se completarán después con resultados reales:
-objetivo **5:30**, máximo **6 minutos**, para el viernes **13 de noviembre de 2026**.
+La [presentación editable](presentacion/pc3_difusion_anime.pptx), el
+[PDF](presentacion/pc3_difusion_anime.pdf) y el [guion](presentacion/guion.md) están en
+`presentacion/`: 7 diapositivas principales, 2 anexos ocultos y **5:30 planificados**,
+máximo **6 minutos**, para el viernes **13 de noviembre de 2026**. Falta incorporar
+los resultados reales y ensayar la duración; los estados pendientes no son métricas cero.
+
+Se añadieron 8 pruebas de presentación (49 en total) sin entrenamiento. Para regenerar
+los archivos y completar la comparación seguir [estas instrucciones](presentacion/README.md).
+El generador no modifica los módulos experimentales ni ejecuta el notebook.

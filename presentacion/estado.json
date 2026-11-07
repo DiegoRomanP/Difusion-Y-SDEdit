@@ -1,0 +1,12 @@
+{
+  "status": "pending_results",
+  "main_slides": 7,
+  "hidden_appendices": 2,
+  "planned_seconds": 330,
+  "spoken_words": 587,
+  "estimated_words_per_minute": 106.7,
+  "timing_measured": false,
+  "pc3_source_sha256": "9ab8b59acc925fb5869ac2e6e2a3490a07ed7ff485806558de498e0695f3e8bc",
+  "evidence": null,
+  "pptx_sha256": "9e7519adbefc67882389527580cbdc9ae08ce56ec45423d04eb7d8a5036d5eee"
+}
