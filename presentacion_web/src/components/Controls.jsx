@@ -5,7 +5,7 @@ import { formatTime } from '../navigation.js';
 
 export function Header({ pending, motion, fullscreen, onFullscreen, open }) {
   return <header className="topbar">
-    <a className="brand" href="#/1" aria-label="PC3, volver a la portada">
+    <a className="brand" href="#/1" aria-label="PC3 / COMPUTACIÓN GRÁFICA, volver a la portada">
       <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
       <span>PC3 <span className="brand-sub">/ COMPUTACIÓN GRÁFICA</span></span>
     </a>
@@ -33,7 +33,7 @@ export function Footer({ index, slides, timer, go, open }) {
     <nav className="slide-navigation" aria-label="Diapositivas principales">
       {slides.map((slide, position) => <button key={position} onClick={() => go(position)}
         className={`step ${position === index ? 'active' : ''}`} aria-current={position === index ? 'step' : undefined}
-        aria-label={`Ir a diapositiva ${position + 1}: ${slide.section}`} title={slide.section}>
+        aria-label={`Ir a diapositiva ${String(position + 1).padStart(2, '0')}: ${slide.section}`} title={slide.section}>
         <span>{String(position + 1).padStart(2, '0')}</span><i aria-hidden="true" /></button>)}
     </nav>
     <div className="arrow-controls">

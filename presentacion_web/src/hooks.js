@@ -25,18 +25,24 @@ export function useMotionPreference() {
 }
 
 export function useRehearsalTimer() {
-  const [running, setRunning] = useState(false);
-  const [base, setBase] = useState(0);
+  const [clock, setClock] = useState({ running: false, total: 0, started: 0 });
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
-    if (!running) return;
-    const start = performance.now();
-    const interval = setInterval(() => setElapsed(base + Math.floor((performance.now() - start) / 1000)), 200);
+    const update = () => setElapsed(Math.floor((clock.total +
+      (clock.running ? performance.now() - clock.started : 0)) / 1000));
+    update();
+    if (!clock.running) return;
+    const interval = setInterval(update, 200);
     return () => clearInterval(interval);
-  }, [running, base]);
+  }, [clock]);
   return {
-    elapsed, running,
-    toggle: () => { if (running) setBase(elapsed); setRunning((value) => !value); },
-    reset: () => { setRunning(false); setBase(0); setElapsed(0); },
+    elapsed, running: clock.running,
+    toggle: () => {
+      const now = performance.now();
+      setClock((state) => state.running
+        ? { running: false, total: state.total + now - state.started, started: 0 }
+        : { ...state, running: true, started: now });
+    },
+    reset: () => setClock({ running: false, total: 0, started: 0 }),
   };
 }
