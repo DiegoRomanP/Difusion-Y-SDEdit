@@ -1,7 +1,7 @@
 """U-Net compartida, proceso directo, EMA y pesos portables con procedencia."""
 
 import json
-import os
+import uuid
 from contextlib import contextmanager
 from importlib.resources import files
 from pathlib import Path
@@ -102,7 +102,7 @@ def export_weights(model, path: Path, provenance: dict) -> None:
     """Pesos y metadatos en un único safetensors reemplazado atómicamente."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
     metadata = {**provenance, "model_config": dict(model.config)}
     save_file(
         {k: v.detach().cpu().contiguous() for k, v in model.state_dict().items()},

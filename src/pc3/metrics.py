@@ -12,7 +12,7 @@ from pathlib import Path
 
 from pc3.config import Config, training_contract
 from pc3.data import load_manifest
-from pc3.io import file_sha256, fingerprint, read_json, write_json
+from pc3.io import file_sha256, fingerprint, read_json, source_fingerprint, write_json
 
 
 def metric_protocol(digest, split, real_paths, count, subset_size, subsets, seed, generation):
@@ -33,6 +33,7 @@ def metric_protocol(digest, split, real_paths, count, subset_size, subsets, seed
         "generation_seed": generation["seed"],
         "generation_batch_size": generation["batch_size"],
         "generation_amp": generation["amp"],
+        "pc3_source_sha256": generation["pc3_source_sha256"],
         "versions": {
             name: importlib.metadata.version(name)
             for name in ("torch", "torchvision", "torchmetrics", "torch-fidelity", "pillow")
@@ -98,6 +99,10 @@ def evaluate(
     manifest = load_manifest(config.manifest)
     samples = Path(samples)
     generation = read_json(samples / "generation.json")
+    if generation["pc3_source_sha256"] != source_fingerprint():
+        raise ValueError(
+            "El código cambió desde sample; mantener la versión original del experimento."
+        )
     if not generation.get("complete") or generation["count"] != len(generation["images"]):
         raise ValueError("La generación está incompleta; reanudar sample antes de evaluar.")
     digest = file_sha256(config.manifest)

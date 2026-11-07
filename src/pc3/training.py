@@ -7,7 +7,6 @@ https://huggingface.co/docs/diffusers/training/unconditional_training
 
 import csv
 import importlib.metadata
-import os
 import platform
 import random
 import signal
@@ -24,7 +23,7 @@ from tqdm.auto import tqdm
 
 from pc3.config import Config, training_contract
 from pc3.data import load_manifest
-from pc3.io import file_sha256, fingerprint, read_json, write_json
+from pc3.io import file_sha256, fingerprint, read_json, source_fingerprint, write_json
 from pc3.model import (
     ExponentialMovingAverage,
     create_model,
@@ -40,6 +39,7 @@ from pc3.tensor_data import FaceDataset
 def runtime_versions() -> dict:
     return {
         "python": platform.python_version(),
+        "pc3_source_sha256": source_fingerprint(),
         **{
             name: importlib.metadata.version(name)
             for name in ("torch", "torchvision", "diffusers", "safetensors", "pillow", "numpy")
@@ -51,6 +51,10 @@ def _loader(dataset, config, device, *, sampler=None):
     kwargs = {"batch_sampler": sampler} if sampler else {"batch_size": config.batch_size}
     return DataLoader(
         dataset,
+        # DataLoader sortea base_seed incluso con shuffle=False. Separarlo evita
+        # consumir el RNG de la red cada vez que se reconstruye al reanudar.
+        # https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader
+        generator=torch.Generator().manual_seed(config.seed + 5),
         num_workers=config.num_workers,
         pin_memory=device.type == "cuda",
         persistent_workers=config.num_workers > 0,
@@ -89,7 +93,7 @@ def validation_loss(model, loader, config, device, alphas) -> float:
 
 
 def _save_checkpoint(path, state):
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
     torch.save(state, temporary)
     temporary.replace(path)
 
@@ -98,8 +102,8 @@ def _write_history(path, rows):
     if not rows:
         return
     columns = sorted({key for row in rows for key in row})
-    temporary = path.with_suffix(".csv.tmp")
-    with temporary.open("w", newline="", encoding="utf-8") as file:
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    with temporary.open("x", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=columns)
         writer.writeheader()
         writer.writerows(rows)
@@ -195,6 +199,8 @@ def _train_locked(config, initialization, run_dir, resume, device, manifest, met
     rng = torch.Generator(device=device).manual_seed(config.seed)
     step, microstep, best, previous_wall, skipped = 0, 0, float("inf"), 0.0, 0
     history = []
+    # Independizar el azar del forward del usado al inicializar/cargar los pesos.
+    torch.manual_seed(config.seed + 7)
     if resume:
         # Nuestros checkpoints contienen únicamente tensores/tipos simples.
         state = torch.load(run_dir / "latest.pt", map_location="cpu", weights_only=True)

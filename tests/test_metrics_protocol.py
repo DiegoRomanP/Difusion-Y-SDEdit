@@ -38,7 +38,14 @@ def test_partial_training_must_be_explicit():
 
 
 def test_kid_seed_and_subset_settings_are_part_of_the_protocol():
-    generation = {"sampler": "ddim", "steps": 50, "seed": 10, "batch_size": 1, "amp": True}
+    generation = {
+        "sampler": "ddim",
+        "steps": 50,
+        "seed": 10,
+        "batch_size": 1,
+        "amp": True,
+        "pc3_source_sha256": "synthetic-source-digest",
+    }
     a = metric_protocol("digest", "test", ["a", "b"], 2, 2, 50, 42, generation)
     b = metric_protocol("digest", "test", ["a", "b"], 2, 2, 50, 43, generation)
     assert a != b

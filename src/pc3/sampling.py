@@ -13,7 +13,7 @@ from PIL import Image
 from tqdm.auto import tqdm
 
 from pc3.config import Config, training_contract
-from pc3.io import file_sha256, read_json, write_json
+from pc3.io import file_sha256, read_json, source_fingerprint, write_json
 from pc3.model import create_model, load_weights, noise_scheduler
 
 
@@ -121,17 +121,25 @@ def generate(
         "source_hash": source_hash,
         "hardware": device_info(device),
         "manifest_sha256": file_sha256(config.manifest),
+        "pc3_source_sha256": source_fingerprint(),
     }
     if output.exists() and any(output.iterdir()):
         if not (output / "request.json").exists() or read_json(output / "request.json") != request:
             raise FileExistsError("La salida pertenece a otra generación; elegir otro directorio.")
     output.mkdir(parents=True, exist_ok=True)
+    for name in ("images", "grid.png", "denoising.gif"):
+        if (output / name).is_symlink():
+            raise ValueError("No escribir resultados a través de enlaces simbólicos.")
     write_json(output / "request.json", request)
     run_summary = None
     if weights:
         run_file = Path(weights).parent / "run.json"
         if run_file.is_file():
             run = read_json(run_file)
+            if run["versions"]["pc3_source_sha256"] != request["pc3_source_sha256"]:
+                raise ValueError(
+                    "El código cambió desde el entrenamiento; conservar el código original."
+                )
             if run["status"] in {"training", "initializing"}:
                 raise ValueError(
                     "Esperar a que termine/se pause train; ya guarda previews periódicos."
@@ -178,6 +186,8 @@ def generate(
     for start in tqdm(range(0, config.sample_count, config.sample_batch_size), desc=label):
         stop = min(config.sample_count, start + config.sample_batch_size)
         names = [f"{index:06}.png" for index in range(start, stop)]
+        if any((image_dir / name).is_symlink() for name in names):
+            raise ValueError("Una muestra de salida es un enlace simbólico; no se sobrescribirá.")
         intact = all(
             name in progress["images"]
             and (image_dir / name).is_file()

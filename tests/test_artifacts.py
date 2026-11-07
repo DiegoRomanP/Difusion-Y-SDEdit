@@ -1,11 +1,13 @@
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 import torch
 
+from pc3.config import Config
 from pc3.model import export_weights, load_weights, weights_metadata
 from pc3.reporting import report
-from pc3.training import _save_checkpoint
+from pc3.training import _loader, _save_checkpoint
 
 
 def test_local_checkpoint_uses_weights_only_compatible_types(tmp_path):
@@ -35,3 +37,10 @@ def test_report_never_manufactures_results_when_metrics_are_missing(tmp_path):
     with pytest.raises(FileNotFoundError):
         report([Path("does-not-exist.json")], output=output)
     assert not output.exists()
+
+
+def test_dataloader_creation_does_not_advance_training_rng():
+    loader = _loader([torch.ones(3, 8, 8)], replace(Config(), num_workers=0), torch.device("cpu"))
+    before = torch.get_rng_state().clone()
+    next(iter(loader))
+    assert torch.equal(torch.get_rng_state(), before)
