@@ -28,3 +28,7 @@ access_token
 *.pt
 *.pth
 *.safetensors
+
+# Renders individuales de revisión: el PPTX, PDF y la vista general sí se entregan.
+presentacion/vistas/
+presentacion/pc3-render-*/
