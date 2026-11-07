@@ -18,3 +18,16 @@ test('el HTML se abre sin servidor ni red y permite navegar sin errores', async 
   expect(remote).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+test('el teclado avanza y el guion se abre y cierra sin perder la escena', async ({ page }) => {
+  await page.goto(url);
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(page).toHaveURL(/#\/2$/);
+  await page.keyboard.press('n');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog')).toContainText('ruido gaussiano');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page).toHaveURL(/#\/2$/);
+});
