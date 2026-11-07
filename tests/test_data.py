@@ -53,10 +53,17 @@ def test_manifest_rejects_split_leakage(tmp_path):
     from pc3.io import write_json
 
     path = tmp_path / "bad.json"
-    write_json(path, {"schema": 1, "image_size": 64, "records": [
-        {"path": "a.png", "split": "train", "group": "same", "sha256": "a"},
-        {"path": "b.png", "split": "test", "group": "same", "sha256": "b"},
-        {"path": "c.png", "split": "val", "group": "other", "sha256": "c"},
-    ]})
+    write_json(
+        path,
+        {
+            "schema": 1,
+            "image_size": 64,
+            "records": [
+                {"path": "a.png", "split": "train", "group": "same", "sha256": "a"},
+                {"path": "b.png", "split": "test", "group": "same", "sha256": "b"},
+                {"path": "c.png", "split": "val", "group": "other", "sha256": "c"},
+            ],
+        },
+    )
     with pytest.raises(ValueError, match="grupo"):
         load_manifest(path)

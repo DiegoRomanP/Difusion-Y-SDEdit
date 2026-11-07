@@ -96,10 +96,13 @@ def create_manifest(root: Path, output: Path, *, image_size: int, seed: int) -> 
             excluded["exact_duplicate"] += 1
             continue
         seen.add(digest)
-        records.append({
-            "path": relative, "sha256": digest,
-            "group": min(_dhash(image), _dhash(ImageOps.mirror(image))),
-        })
+        records.append(
+            {
+                "path": relative,
+                "sha256": digest,
+                "group": min(_dhash(image), _dhash(ImageOps.mirror(image))),
+            }
+        )
     groups = defaultdict(list)
     for row in records:
         groups[row["group"]].append(row)
@@ -107,9 +110,12 @@ def create_manifest(root: Path, output: Path, *, image_size: int, seed: int) -> 
     for row in records:
         row["split"] = assignment[row["path"]]
     manifest = {
-        "schema": 1, "image_size": image_size, "seed": seed,
+        "schema": 1,
+        "image_size": image_size,
+        "seed": seed,
         "split_method": "grouped_dhash_mirror_invariant_80_10_10",
-        "excluded": dict(excluded), "counts": dict(Counter(row["split"] for row in records)),
+        "excluded": dict(excluded),
+        "counts": dict(Counter(row["split"] for row in records)),
         "records": records,
     }
     write_json(output, manifest)

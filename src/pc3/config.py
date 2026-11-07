@@ -49,9 +49,13 @@ class Config:
                 valid = type(value) is expected
             if not valid:
                 raise ValueError(f"Tipo/valor inválido para {field.name}: {value!r}")
-            if expected is int and (value < 0 or (value == 0 and field.name not in {
-                "seed", "num_workers", "warmup_steps", "sample_seed"
-            })):
+            if expected is int and (
+                value < 0
+                or (
+                    value == 0
+                    and field.name not in {"seed", "num_workers", "warmup_steps", "sample_seed"}
+                )
+            ):
                 raise ValueError(f"{field.name} debe ser positivo (o cero si corresponde).")
         if self.image_size != 64:
             raise ValueError("Este experimento controlado y sus pesos requieren image_size=64.")
@@ -87,7 +91,14 @@ def load_config(path: str | Path) -> Config:
 def training_contract(config: Config) -> dict:
     """Contrato comparable: se excluyen ubicación, salida y opciones solo de inferencia."""
     excluded = {
-        "data_dir", "manifest", "runs_dir", "sampling_steps", "sample_batch_size",
-        "sample_count", "sample_seed", "kid_subset_size", "kid_subsets",
+        "data_dir",
+        "manifest",
+        "runs_dir",
+        "sampling_steps",
+        "sample_batch_size",
+        "sample_count",
+        "sample_seed",
+        "kid_subset_size",
+        "kid_subsets",
     }
     return {key: value for key, value in asdict(config).items() if key not in excluded}
