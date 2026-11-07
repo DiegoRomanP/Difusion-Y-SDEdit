@@ -49,7 +49,7 @@ y validación estructural no son evidencias de entrenamiento ni de ajuste en GPU
 ## Fuentes
 
 - Curso: `../semana9/Diffusion Models.ipynb` (TensorFlow, CelebA, Huber y DDPM),
-  diapositivas Parte IV, y guías de `semana8/` y `semana9/`, respecto a la raíz del curso.
+  diapositivas Parte IV, y guías de ambas semanas; rutas relativas a `pc3/`.
 - https://huggingface.co/anton-l/ddpm-ema-flowers-64
 - https://docs.astral.sh/uv/guides/integration/pytorch/
 - https://huggingface.co/docs/diffusers/training/unconditional_training
