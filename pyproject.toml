@@ -74,6 +74,7 @@ select = ["E", "F", "I", "UP", "B"]
 
 [dependency-groups]
 dev = [
+    { include-group = "presentation" },
     "nbformat>=5.10,<6",
     "numpy>=2.2,<3",
     "pillow>=11.3,<14",
@@ -83,4 +84,9 @@ dev = [
 notebook = [
     "ipykernel>=6.30,<8",
     "jupyterlab>=4.4,<5",
+]
+presentation = [
+    "defusedxml>=0.7.1,<1",
+    "pymupdf>=1.26,<2",
+    "python-pptx>=1.0.2,<2",
 ]

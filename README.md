@@ -10,7 +10,9 @@ diagnósticos y gráficos comparativos.
 modelos** durante su elaboración. No se descargaron aquí imágenes ni pesos del
 modelo. No hay resultados reales ni un ganador supuesto. Las pruebas usan CPU y
 fixtures sintéticos; no demuestran calidad, convergencia ni ajuste en la GPU prevista.
-La presentación se prepara en una segunda etapa, después de obtener evidencias.
+La [presentación HTML animada](presentacion_web/presentacion.html) y su guion están
+preparados como versión previa a la ejecución; la comparación se completará con
+evidencias reales. [Abrir, editar y actualizar](presentacion_web/README.md).
 
 ## 1. Entorno: trabajar siempre dentro de pc3/
 
@@ -334,5 +336,15 @@ Se describe explícitamente el cambio Huber→MSE y TensorFlow/CelebA→PyTorch/
 La licencia Apache-2.0 del checkpoint no concede derechos adicionales sobre imágenes
 del dataset; revisar sus licencias/procedencia antes de redistribuir o usar comercialmente.
 
-La presentación y el guion se completarán después con resultados reales:
-objetivo **5:30**, máximo **6 minutos**, para el viernes **13 de noviembre de 2026**.
+La entrega principal es ahora **[un HTML autocontenido](presentacion_web/presentacion.html)**,
+hecho con React, Tailwind y Anime.js dentro de `presentacion_web/`. Se abre sin servidor
+ni conexión e incluye 7 escenas, 2 anexos, guion, animaciones y controles de exposición.
+El objetivo sigue siendo **5:30 planificados**, máximo **6 minutos**, para el viernes
+**13 de noviembre de 2026**. Falta incorporar los resultados reales y ensayar la duración;
+los estados pendientes no son métricas cero.
+
+El frontend se puede editar/levantar de forma independiente. Ver
+[instrucciones de apertura, desarrollo y actualización](presentacion_web/README.md).
+Los archivos [PPTX/PDF y guion anteriores](presentacion/README.md) se conservan.
+La suite Python mantiene 49 pruebas; el frontend tiene 7 pruebas unitarias y 17 de
+navegador. Ningún generador modifica los módulos experimentales ni ejecuta el notebook.

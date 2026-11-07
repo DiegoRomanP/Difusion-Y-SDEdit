@@ -1,0 +1,64 @@
+{
+  "status": "pending_results",
+  "slides": [
+    {
+      "seconds": 25,
+      "title": "¿El preentrenamiento ayuda a generar anime?",
+      "section": "Pregunta",
+      "speech": "Nuestro proyecto estudia la generación de rostros anime mediante difusión. La pregunta es si, con el mismo presupuesto local, conviene aprender desde cero o adaptar pesos abiertos. Vamos a explicar el modelo, los controles de la comparación y cómo se evaluará sin asumir de antemano un ganador.",
+      "cue": "Abrir con la pregunta; no presentar el diagrama como una imagen del modelo."
+    },
+    {
+      "seconds": 55,
+      "title": "Un DDPM aprende a quitar ruido",
+      "section": "Fundamentos",
+      "speech": "La difusión tiene dos procesos. En el directo, añadimos ruido gaussiano a una imagen hasta destruir su estructura. La ecuación combina señal y ruido según el tiempo. Durante el entrenamiento escogemos un tiempo aleatorio y la U-Net recibe la imagen corrompida y ese tiempo para predecir el ruido añadido. Minimizamos el error cuadrático entre el ruido real y el estimado. Para generar, partimos de ruido y aplicamos el proceso inverso de forma iterativa. Usamos DDIM con 50 pasos de inferencia. Los mil pasos del calendario no significan mil pasadas de la red por imagen al entrenar: solo se muestrea un tiempo.",
+      "cue": "Señalar señal → ruido y luego U-Net. Explicar la ecuación; no leer símbolos uno por uno."
+    },
+    {
+      "seconds": 50,
+      "title": "Mismos datos. Tres puntos de partida",
+      "section": "Experimento",
+      "speech": "Usamos Anime Face Dataset de Kaggle, versión tres, con recorte central a sesenta y cuatro píxeles RGB. Eliminamos duplicados exactos y agrupamos por un hash perceptual que también contempla espejos. Esos grupos no cruzan entrenamiento, validación y test; el reparto previsto es ochenta, diez y diez. Comparamos la misma U-Net aleatoria, un checkpoint abierto sin adaptar y ese mismo checkpoint ajustado con todos sus parámetros. Los pesos abiertos provienen de flores, no anime, para reducir el riesgo conocido de solapamiento con test. No podemos garantizar ausencia total de similitud entre imágenes.",
+      "cue": "Distinguir B, referencia sin entrenamiento local, de C, fine-tuning completo."
+    },
+    {
+      "seconds": 50,
+      "title": "8 GB: reducir memoria, no la comparación",
+      "section": "Implementación",
+      "speech": "El perfil prevé 30 000 actualizaciones por cada modelo entrenado, usando un microbatch de 1 y acumulación de 16. El lote efectivo es 16. Para reducir memoria usamos precisión mixta, checkpointing de gradientes y la copia EMA en CPU. Ambos casos corren secuencialmente en la misma GPU y conservan datos, orden de ejemplos, objetivo y optimizador. Seleccionamos los pesos EMA con la menor MSE de validación sobre ruido fijo, nunca mirando test. Los checkpoints guardan optimizador, posición y azar para reanudar. Es un presupuesto previsto: hay que calibrar memoria y tiempo en la GPU real antes de prometer una noche.",
+      "cue": "Aclarar que un update no es una época; el preentrenamiento externo no se iguala."
+    },
+    {
+      "seconds": 45,
+      "title": "Medir calidad también exige controles",
+      "section": "Evaluación",
+      "speech": "La calidad se evalúa con FID y KID; valores menores indican mayor cercanía distributiva bajo el mismo protocolo. Se usará el mismo test y el mismo número de imágenes, hasta cinco mil, con iguales semillas y pasos de muestreo. Medimos además segundos por imagen y memoria. La MSE selecciona pesos, pero no garantiza buenas caras. Inception fue entrenada en imágenes naturales y tiene límites en anime. La desviación de KID entre subconjuntos no es un intervalo de confianza entre entrenamientos. Una sola semilla de entrenamiento solo permite conclusiones exploratorias.",
+      "cue": "No leer FID/KID como accuracy. Si preguntan por SSIM/dHash, usar el anexo."
+    },
+    {
+      "seconds": 65,
+      "title": "Resultados: medir antes de concluir",
+      "section": "Resultados",
+      "speech": "Esta es la comparación preparada para los tres casos. Todavía no hay muestras, métricas ni historiales de entrenamiento reales, por eso aparecen como pendientes y no como ceros. No podemos afirmar que el fine-tuning sea mejor ni que el perfil quepa en ocho gigabytes. Al ejecutar, aquí se mostrarán las cuatro primeras semillas de cada caso, sin seleccionar solo imágenes favorables, junto con FID, KID y segundos por imagen. También revisaremos las curvas para detectar sobreajuste. El código ya produce esas evidencias; las pruebas auxiliares en CPU verifican herramientas, pero no reemplazan un entrenamiento ni demuestran calidad.",
+      "cue": "Con resultados, señalar A → B → C y dar una interpretación visual, no solo leer cifras. Sin resultados, decirlo explícitamente. No ejecutar una demo en vivo."
+    },
+    {
+      "seconds": 40,
+      "title": "La conclusión debe seguir a las evidencias",
+      "section": "Cierre",
+      "speech": "La conclusión actual es metodológica: dejamos una comparación reproducible que separa el efecto de la inicialización del entrenamiento local. El software y el protocolo están preparados; falta ejecutar ambos modelos, comprobar memoria y tiempos, e incorporar muestras y métricas reales. El fine-tuning es una hipótesis, no un resultado garantizado. Solo después de esas mediciones podremos responder cuál conviene con este presupuesto. Gracias.",
+      "cue": "Cerrar aquí. Los anexos no forman parte del recorrido de 5:30."
+    }
+  ],
+  "evidence": [],
+  "config": {
+    "batchSize": 1,
+    "accumulation": 16,
+    "maxSteps": 30000,
+    "sampleCount": 5000,
+    "samplingSteps": 50,
+    "pretrainedId": "anton-l/ddpm-ema-flowers-64",
+    "revision": "dc3af58142513ad2e41e94b57a35ec3a04286a94"
+  }
+}

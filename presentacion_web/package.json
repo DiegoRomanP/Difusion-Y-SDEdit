@@ -1,0 +1,29 @@
+{
+  "name": "pc3-presentacion-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build && node tools/standalone.mjs",
+    "content": "uv run --project .. --no-sync python tools/export_content.py",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "node tools/browser-tests.mjs",
+    "browser:install": "node tools/browser-tests.mjs --install"
+  },
+  "dependencies": {
+    "animejs": "4.5.0",
+    "lucide-react": "1.70.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.65.0",
+    "@tailwindcss/vite": "4.3.5",
+    "@vitejs/plugin-react": "6.2.1",
+    "tailwindcss": "4.3.5",
+    "vite": "8.3.6"
+  }
+}
