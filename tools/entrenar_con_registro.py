@@ -10,8 +10,8 @@ archivo abierto por otro proceso hace fallar el reemplazo atómico que usa el
 entrenamiento (WinError 5) y lo detiene.
 
 Uso (mismos argumentos que main.py):
-    uv run --no-sync python tools/entrenar_con_registro.py --config configs/rtx3060_12gb.toml \
-        train --init random --run-dir runs/from_scratch_evidencia
+    uv run --no-sync python tools/entrenar_con_registro.py \
+        --config configs/rtx4070ti_12gb.toml train --run anime64_4070ti
 
 La salida JSON final de la CLI se guarda en reports/evidencia/result_<run>.json y el
 registro legible en reports/evidencia/log_<run>.log, en vez de mostrarse en pantalla.
@@ -43,16 +43,21 @@ BAR = re.compile(r"(\d+)/(\d+)\s*\[.*?([\d.]+)(it/s|s/it).*?(?:mse=([\d.]+))?\]"
 def parse_arguments(arguments: list[str]):
     """Mismo directorio y perfil que elegiría la CLI para estos argumentos."""
     cli = argparse.ArgumentParser(add_help=False)
-    cli.add_argument("--config", default="configs/rtx3060_8gb.toml", type=Path)
+    cli.add_argument("--config", required=True, type=Path)
     cli.add_argument("command")
-    cli.add_argument("--init", choices=["random", "pretrained"], required=True)
+    cli.add_argument("--init", choices=["random", "pretrained"], default="random")
+    cli.add_argument("--run")
     cli.add_argument("--run-dir", type=Path)
+    cli.add_argument("--resume", action="store_true")
     known, _ = cli.parse_known_args(arguments)
     if known.command != "train":
         raise SystemExit("This wrapper only runs the train command.")
     config = load_config(known.config)
-    name = "from_scratch" if known.init == "random" else "finetuned"
-    return config, known.run_dir or Path(config.runs_dir) / name
+    if known.run_dir:
+        return config, known.run_dir
+    if not known.run:
+        raise SystemExit("Se requiere --run NOMBRE (o --run-dir RUTA).")
+    return config, Path(config.runs_dir) / known.run
 
 
 class Console:
