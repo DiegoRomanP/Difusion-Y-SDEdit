@@ -10,7 +10,13 @@ wheels/
 .venv
 
 # Datos, pesos y resultados reales: nunca forman parte del código entregable.
-data/
+# `data/*` y no `data/`: con el directorio excluido git no desciende y la
+# negación es inalcanzable. La negación va DESPUÉS: gana el último patrón.
+# El manifiesto se versiona porque define qué imágenes quedaron en test;
+# regenerarlo en otra máquina movería al train imágenes que estaban en test.
+data/*
+!data/manifest.json
+
 runs/
 reports/
 .cache/
