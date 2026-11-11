@@ -2,8 +2,15 @@
 
 ## Estado
 
-Aceptado para la implementación solicitada. Los tiempos, memoria real y resultados
-quedan pendientes de ejecución por el compañero; no se ha entrenado ningún modelo.
+**Sustituido por [ADR 002](002-cascada-superresolucion.md) el 10 de noviembre de 2026.**
+Se conserva como historia de la decisión y como contexto de las evidencias que produjo.
+
+Esta decisión **sí se ejecutó**: ambos entrenamientos completaron 30 000 updates en una
+RTX 3060 de 12 GB (no de 8 GB, como se preveía aquí) y se evaluaron los tres brazos en
+test con N=4152. Los resultados están en `reports/comparison/`. Lo que se retira no es
+la ejecución sino la pregunta: comparar inicializaciones obliga a copiar la arquitectura
+del checkpoint abierto, y ese candado limita la calidad alcanzable. ADR 002 explica el
+razonamiento y qué sustituye a esta comparación.
 
 ## Contexto
 
