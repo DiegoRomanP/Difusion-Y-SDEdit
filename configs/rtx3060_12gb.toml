@@ -3,6 +3,7 @@
 # Cambiar antes de empezar, no al reanudar.
 seed = 2026
 image_size = 64
+arch = "flores64"
 dataset_handle = "splcher/animefacedataset/versions/3"
 data_dir = "data/raw"
 manifest = "data/manifest.json"

@@ -426,12 +426,18 @@ def calibrate(config: Config, *, device_name="cuda", updates=3) -> dict:
     )
     scaler = torch.amp.GradScaler("cuda", enabled=config.amp and device.type == "cuda")
     ema = ExponentialMovingAverage(model, config.ema_decay, config.ema_device)
-    clean = torch.randn(config.batch_size, 3, 64, 64, device=device)
+    clean = torch.randn(
+        config.batch_size, 3, config.image_size, config.image_size, device=device
+    )
     times = torch.zeros(config.batch_size, dtype=torch.long, device=device)
+    # Una sola iteración de warmup no basta: el autotune de cuDNN y el crecimiento
+    # del asignador siguen pagándose en las primeras. Con `updates=3` eso infló una
+    # medición real de la 3060 por 8.2x, así que el warmup escala con la petición.
+    warmup = max(3, updates // 5)
     durations, skipped = [], 0
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats(device)
-    while len(durations) < updates + 1:  # Warmup y creación real del estado AdamW.
+    while len(durations) < updates + warmup:
         synchronize(device)
         start = time.perf_counter()
         optimizer.zero_grad(set_to_none=True)
@@ -453,7 +459,7 @@ def calibrate(config: Config, *, device_name="cuda", updates=3) -> dict:
         ema.update(model)
         synchronize(device)
         durations.append(time.perf_counter() - start)
-    seconds = sum(durations[1:]) / updates
+    seconds = sum(durations[warmup:]) / updates
     return {
         "kind": "synthetic_calibration_not_training_evidence",
         "hardware": device_info(device),
@@ -465,5 +471,8 @@ def calibrate(config: Config, *, device_name="cuda", updates=3) -> dict:
         if device.type == "cuda"
         else 0,
         "effective_batch": config.batch_size * config.accumulation_steps,
+        "measured_updates": updates,
+        "discarded_warmup_updates": warmup,
+        "arch": config.arch,
         "skipped_fp16_attempts": skipped,
     }

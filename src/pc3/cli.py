@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import re
 from dataclasses import asdict, replace
 from pathlib import Path
 
@@ -9,9 +10,21 @@ from pc3.config import load_config
 from pc3.io import write_json
 
 
+def machine_slug(calibration: dict) -> str:
+    """Nombre de archivo estable por equipo: tarjeta y VRAM redondeada."""
+    hardware = calibration["hardware"]
+    name = re.sub(r"[^a-z0-9]+", "-", hardware["name"].lower())
+    name = re.sub(r"^(nvidia-|geforce-)+", "", name).strip("-")
+    return f"{name}-{round(hardware['total_vram_gib'])}gb"
+
+
 def parser() -> argparse.ArgumentParser:
-    cli = argparse.ArgumentParser(description="PC3 — DDPM anime: desde cero frente a fine-tuning")
-    cli.add_argument("--config", default="configs/rtx3060_8gb.toml", type=Path)
+    cli = argparse.ArgumentParser(
+        description="PC3 — DDPM anime a 64 px y superresolución en cascada"
+    )
+    # Sin valor por defecto: elegir el perfil a ciegas fue la causa de una
+    # calibración engañosa; el perfil es parte del experimento, no una comodidad.
+    cli.add_argument("--config", required=True, type=Path)
     commands = cli.add_subparsers(dest="command", required=True)
     commands.add_parser("config", help="Validar y mostrar el perfil sin descargas")
     commands.add_parser("doctor", help="Comprobar entorno y CUDA sin descargar modelos")
@@ -19,13 +32,15 @@ def parser() -> argparse.ArgumentParser:
     commands.add_parser("prepare", help="Validar imágenes y crear particiones sin fuga por grupos")
     calibration = commands.add_parser("calibrate", help="Medir VRAM/tiempo con datos sintéticos")
     calibration.add_argument("--device", default="cuda")
-    calibration.add_argument("--updates", type=int, default=3)
-    calibration.add_argument("--output", type=Path, default=Path("reports/calibration.json"))
+    calibration.add_argument("--updates", type=int, default=20)
+    calibration.add_argument("--output", type=Path)
     training = commands.add_parser(
         "train", help="Entrenar una inicialización con el contrato común"
     )
-    training.add_argument("--init", choices=["random", "pretrained"], required=True)
-    training.add_argument("--run-dir", type=Path)
+    training.add_argument("--init", choices=["random", "pretrained"], default="random")
+    destination = training.add_mutually_exclusive_group(required=True)
+    destination.add_argument("--run", help="Nombre de la ejecución bajo runs_dir")
+    destination.add_argument("--run-dir", type=Path, help="Ruta explícita, para casos raros")
     training.add_argument("--resume", action="store_true")
     training.add_argument("--device", default="cuda")
     sampling = commands.add_parser("sample", help="Obtener imágenes/GIF y medir inferencia")
@@ -114,12 +129,13 @@ def main(argv=None) -> None:
             if args.updates < 1:
                 raise ValueError("--updates debe ser >=1.")
             result = calibrate(config, device_name=args.device, updates=args.updates)
-            write_json(args.output, result)
+            output = args.output or Path("reports/calibration") / f"{machine_slug(result)}.json"
+            write_json(output, result)
+            result = {**result, "written_to": output.as_posix()}
         elif args.command == "train":
             from pc3.training import train
 
-            name = "from_scratch" if args.init == "random" else "finetuned"
-            run = args.run_dir or Path(config.runs_dir) / name
+            run = args.run_dir or Path(config.runs_dir) / args.run
             result = train(
                 config,
                 initialization=args.init,

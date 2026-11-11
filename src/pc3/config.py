@@ -4,6 +4,7 @@ import math
 import re
 import tomllib
 from dataclasses import asdict, dataclass, fields
+from importlib.resources import files
 from pathlib import Path
 
 
@@ -11,6 +12,7 @@ from pathlib import Path
 class Config:
     seed: int = 2026
     image_size: int = 64
+    arch: str = "anime64"
     dataset_handle: str = "splcher/animefacedataset/versions/3"
     data_dir: str = "data/raw"
     manifest: str = "data/manifest.json"
@@ -57,8 +59,10 @@ class Config:
                 )
             ):
                 raise ValueError(f"{field.name} debe ser positivo (o cero si corresponde).")
-        if self.image_size != 64:
-            raise ValueError("Este experimento controlado y sus pesos requieren image_size=64.")
+        if not files("pc3").joinpath(f"assets/arch/{self.arch}.json").is_file():
+            raise ValueError(f"Arquitectura desconocida: {self.arch!r}")
+        if self.image_size < 32 or self.image_size % 8:
+            raise ValueError("image_size debe ser >=32 y múltiplo de 8.")
         if self.learning_rate <= 0 or self.weight_decay < 0:
             raise ValueError("learning_rate debe ser >0 y weight_decay >=0.")
         if not 0 < self.ema_decay < 1 or self.ema_device not in {"cpu", "cuda"}:

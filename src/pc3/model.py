@@ -14,9 +14,36 @@ from safetensors.torch import load_file, save_file
 from pc3.config import Config
 from pc3.io import fingerprint
 
+DEFAULT_ARCH = "anime64"
 
-def unet_config() -> dict:
-    return json.loads(files("pc3").joinpath("assets/unet_config.json").read_text())
+# Mínimo estructural para aceptar unos pesos sin exigir una arquitectura concreta.
+REQUIRED_ARCH_KEYS = frozenset(
+    {
+        "block_out_channels",
+        "down_block_types",
+        "up_block_types",
+        "in_channels",
+        "out_channels",
+        "sample_size",
+    }
+)
+
+
+def available_architectures() -> list[str]:
+    return sorted(
+        path.name.removesuffix(".json")
+        for path in files("pc3").joinpath("assets/arch").iterdir()
+        if path.name.endswith(".json")
+    )
+
+
+def unet_config(name: str = DEFAULT_ARCH) -> dict:
+    """Arquitectura con nombre: la elige el perfil, no la fija el código."""
+    if name not in available_architectures():
+        raise ValueError(
+            f"Arquitectura desconocida: {name!r}. Disponibles: {available_architectures()}"
+        )
+    return json.loads(files("pc3").joinpath(f"assets/arch/{name}.json").read_text())
 
 
 def noise_scheduler() -> DDPMScheduler:
@@ -44,6 +71,7 @@ def q_sample(clean, times, noise, alphas_cumprod):
 
 
 def create_model(config: Config, pretrained: bool = False) -> UNet2DModel:
+    architecture = unet_config(config.arch)
     if pretrained:
         # Solo state_dict del SHA fijado, sin código remoto. Diffusers 0.42.1 usa
         # torch.load(weights_only=True) para el .bin antiguo; no activar pickle libre.
@@ -64,12 +92,15 @@ def create_model(config: Config, pretrained: bool = False) -> UNet2DModel:
                 "La conversión del checkpoint antiguo no fue estricta; "
                 "no se aceptarán parámetros inicializados silenciosamente al azar."
             )
-    else:
-        model = UNet2DModel.from_config(unet_config())
-    for key, expected in unet_config().items():
-        if not key.startswith("_") and fingerprint(model.config[key]) != fingerprint(expected):
-            raise ValueError(f"El checkpoint no coincide con la arquitectura compartida: {key}")
-    return model
+        # Un checkpoint ajeno solo sirve si su forma coincide con la pedida; un
+        # modelo recién construido ya es, por definición, su propia arquitectura.
+        for key, expected in architecture.items():
+            if not key.startswith("_") and fingerprint(model.config[key]) != fingerprint(expected):
+                raise ValueError(
+                    f"El checkpoint preentrenado no es de la arquitectura {config.arch!r}: {key}"
+                )
+        return model
+    return UNet2DModel.from_config(architecture)
 
 
 class ExponentialMovingAverage:
@@ -120,13 +151,23 @@ def weights_metadata(path: Path) -> dict:
         return json.loads(metadata["pc3"])
 
 
-def load_weights(path: Path):
+def load_weights(path: Path, expected_arch: str | None = None):
+    """Los pesos traen su arquitectura; `strict=True` ya garantiza las formas.
+
+    `expected_arch` se comprueba solo si el llamante exige una arquitectura
+    concreta: así un checkpoint histórico sigue cargándose tras cambiarla.
+    """
     metadata = weights_metadata(path)
-    for key, expected in unet_config().items():
-        if not key.startswith("_") and fingerprint(
-            metadata["model_config"].get(key)
-        ) != fingerprint(expected):
-            raise ValueError(f"Arquitectura PC3 incompatible: {key}")
-    model = UNet2DModel.from_config(metadata["model_config"])
+    stored = metadata.get("model_config")
+    if not isinstance(stored, dict) or stored.get("_class_name") != "UNet2DModel":
+        raise ValueError("Arquitectura ausente o ajena en los pesos: se esperaba UNet2DModel.")
+    missing = REQUIRED_ARCH_KEYS - stored.keys()
+    if missing:
+        raise ValueError(f"Arquitectura incompleta en los pesos: falta {sorted(missing)}")
+    if expected_arch is not None:
+        for key, expected in unet_config(expected_arch).items():
+            if not key.startswith("_") and fingerprint(stored.get(key)) != fingerprint(expected):
+                raise ValueError(f"Los pesos no son de la arquitectura {expected_arch!r}: {key}")
+    model = UNet2DModel.from_config(stored)
     model.load_state_dict(load_file(str(path), device="cpu"), strict=True)
     return model, metadata
