@@ -4,10 +4,10 @@ from copy import deepcopy
 from pathlib import Path
 
 from pc3.io import read_json, write_json
-from pc3.metrics import assert_comparable
+from pc3.metrics import BUDGET_KINDS, assert_comparable, divergences
 
 
-def report(metrics_paths, *, output: Path, runs=(), allow_partial=False) -> dict:
+def report(metrics_paths, *, output: Path, runs=(), strict=False) -> dict:
     import matplotlib
 
     matplotlib.use("Agg")
@@ -15,7 +15,9 @@ def report(metrics_paths, *, output: Path, runs=(), allow_partial=False) -> dict
     import pandas as pd
 
     results = [read_json(path) for path in metrics_paths]
-    assert_comparable(results, allow_partial=allow_partial)
+    declared = divergences(results)
+    if strict and declared:
+        raise ValueError(f"--strict y hay divergencias: {declared}")
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     labels = [result["label"] for result in results]
@@ -89,7 +91,13 @@ def report(metrics_paths, *, output: Path, runs=(), allow_partial=False) -> dict
             if metadata["manifest_sha256"] != results[0]["protocol"]["manifest_sha256"]:
                 raise ValueError("El historial pertenece a otro dataset.")
             if metadata["contract"] != results[0]["provenance"]["contract"]:
-                raise ValueError("El historial pertenece a otro contrato de entrenamiento.")
+                declared.append(
+                    {
+                        "kind": "contrato_del_historial",
+                        "label": run.name,
+                        "detail": "La curva proviene de otro contrato de entrenamiento.",
+                    }
+                )
             history = pd.read_csv(run / "history.csv")
             if "train_mse" in history:
                 rows = history.dropna(subset=["train_mse"])
@@ -111,8 +119,8 @@ def report(metrics_paths, *, output: Path, runs=(), allow_partial=False) -> dict
         plt.close(figure)
     best = min(results, key=lambda result: result["fid"])
     warnings = list(dict.fromkeys(warning for result in results for warning in result["warnings"]))
-    if allow_partial:
-        warnings.insert(0, "INFORME EXPLORATORIO: se permiten entrenamientos incompletos.")
+    if any(item["kind"] in BUDGET_KINDS for item in declared):
+        warnings.insert(0, "INFORME EXPLORATORIO: algún entrenamiento no completó su presupuesto.")
     lines = [
         "# Comparación DDPM anime — resultados ejecutados",
         "",
@@ -132,8 +140,25 @@ def report(metrics_paths, *, output: Path, runs=(), allow_partial=False) -> dict
         "",
         f"El menor FID observado corresponde a **{best['label']}** en esta ejecución.",
         "Esto no establece un ganador universal ni significancia estadística. Revisar KID, "
-        "coste, diversidad y muestras; el preentrenamiento externo "
-        "no se contabiliza como coste local.",
+        "coste, diversidad y muestras antes de concluir.",
+        "",
+        "## Divergencias declaradas",
+        *(
+            [
+                "Estas filas no son comparables sin reservas. Se declaran en vez de "
+                "ocultarlas rechazando el informe; cualquier figura que enfrente estos "
+                "números debe repetirlas.",
+                "",
+                "| Tipo | Serie | Detalle |",
+                "|---|---|---|",
+            ]
+            + [
+                f"| {item['kind']} | {item['label']} | {item['detail']} |"
+                for item in declared
+            ]
+            if declared
+            else ["Ninguna: protocolo, contrato, equipo y presupuesto coinciden."]
+        ),
         "",
         "## Límites",
         *[f"- {warning}" for warning in warnings],
@@ -146,10 +171,12 @@ def report(metrics_paths, *, output: Path, runs=(), allow_partial=False) -> dict
     ]
     (output / "results.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     write_json(output / "comparison.json", results)
+    write_json(output / "divergences.json", declared)
     return {
         "output": str(output),
         "models": labels,
         "num_images": results[0]["protocol"]["num_images"],
+        "divergences": declared,
     }
 
 

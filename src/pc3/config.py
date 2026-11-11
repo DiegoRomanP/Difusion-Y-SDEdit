@@ -73,9 +73,15 @@ class Config:
             raise ValueError("sampling_steps <=1000 y sample_count >=2.")
         if self.kid_subset_size < 2:
             raise ValueError("kid_subset_size debe ser >=2.")
-        if not re.fullmatch(r"[0-9a-f]{40}", self.pretrained_revision):
+        # ADR 002 retira la referencia preentrenada: un perfil puede no usarla.
+        # Si se declara, sigue exigiéndose el SHA completo; ambas o ninguna.
+        if bool(self.pretrained_id.strip()) != bool(self.pretrained_revision.strip()):
+            raise ValueError("pretrained_id y pretrained_revision van juntos o vacíos.")
+        if self.pretrained_revision.strip() and not re.fullmatch(
+            r"[0-9a-f]{40}", self.pretrained_revision
+        ):
             raise ValueError("Fijar pretrained_revision a un commit SHA completo.")
-        for name in ("data_dir", "manifest", "runs_dir", "pretrained_id", "dataset_handle"):
+        for name in ("data_dir", "manifest", "runs_dir", "dataset_handle"):
             if not getattr(self, name).strip():
                 raise ValueError(f"{name} no puede estar vacío.")
 

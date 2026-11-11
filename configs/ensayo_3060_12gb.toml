@@ -1,0 +1,34 @@
+# Ensayo de extremo a extremo en la RTX 3060 local: recorre entrenar, muestrear,
+# evaluar, diagnosticar, informar y empaquetar con el mismo código de la noche,
+# pero en minutos. NO es evidencia de calidad ni de convergencia: 60 updates no
+# entrenan nada. Sirve para que la noche no sea la primera ejecución del código.
+seed = 2026
+image_size = 64
+arch = "anime64"
+dataset_handle = "splcher/animefacedataset/versions/3"
+data_dir = "data/raw"
+manifest = "data/manifest.json"
+runs_dir = "runs"
+pretrained_id = ""
+pretrained_revision = ""
+batch_size = 32
+accumulation_steps = 1
+max_steps = 60
+learning_rate = 0.0002
+weight_decay = 0.000001
+warmup_steps = 10
+ema_decay = 0.999
+ema_device = "cuda"
+amp = true
+gradient_checkpointing = false
+num_workers = 2
+log_every = 10
+checkpoint_every = 30
+validate_every = 30
+validation_images = 64
+sampling_steps = 50
+sample_batch_size = 32
+sample_count = 64
+sample_seed = 12345
+kid_subset_size = 32
+kid_subsets = 4

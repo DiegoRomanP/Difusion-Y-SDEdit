@@ -1,0 +1,43 @@
+# Perfil de la noche en la RTX 4070 Ti de 12 GB (ADR 002).
+#
+# Los valores de ejecución están MEDIDOS en una RTX 3060 de 12 GB con anime64,
+# no supuestos (ms por imagen, lote físico 32, acumulación 1):
+#   checkpointing on,  EMA en CPU   21.8    (lo que heredaba el perfil viejo)
+#   checkpointing off, EMA en CPU   17.4
+#   checkpointing off, EMA en CUDA  15.1    <- este perfil, 6.44 GiB de 12
+# El lote 96 desborda a RAM compartida en Windows y hunde el rendimiento a
+# ~49-89 ms por imagen: no subir el lote físico sin volver a medir el margen.
+#
+# max_steps es PROVISIONAL. tools/correr_noche.py lo deriva de las horas
+# objetivo calibrando en la máquina real y escribe el perfil resuelto en
+# runs/<ejecución>/perfil_resuelto.toml, que es el que se usa al reanudar.
+seed = 2026
+image_size = 64
+arch = "anime64"
+dataset_handle = "splcher/animefacedataset/versions/3"
+data_dir = "data/raw"
+manifest = "data/manifest.json"
+runs_dir = "runs"
+pretrained_id = ""
+pretrained_revision = ""
+batch_size = 32
+accumulation_steps = 1
+max_steps = 60000
+learning_rate = 0.0002
+weight_decay = 0.000001
+warmup_steps = 1000
+ema_decay = 0.999
+ema_device = "cuda"
+amp = true
+gradient_checkpointing = false
+num_workers = 2
+log_every = 50
+checkpoint_every = 1000
+validate_every = 1000
+validation_images = 256
+sampling_steps = 50
+sample_batch_size = 32
+sample_count = 5000
+sample_seed = 12345
+kid_subset_size = 1000
+kid_subsets = 50

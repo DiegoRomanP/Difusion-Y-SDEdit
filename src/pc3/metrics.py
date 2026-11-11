@@ -41,36 +41,113 @@ def metric_protocol(digest, split, real_paths, count, subset_size, subsets, seed
     }
 
 
-def assert_comparable(results: list[dict], *, allow_partial=False) -> None:
+# Lo que no describe comparabilidad sino contaminación entre train y test: si
+# esto difiere, el número no es peor, es inválido. Sigue siendo error duro.
+HARD_PROTOCOL_KEYS = ("manifest_sha256", "real_subset_sha256", "split")
+
+BUDGET_KINDS = frozenset({"presupuesto_incompleto", "imagenes_consumidas"})
+
+
+def _differing_keys(left: dict, right: dict) -> list[str]:
+    return sorted(key for key in left.keys() | right.keys() if left.get(key) != right.get(key))
+
+
+def divergences(results: list[dict]) -> list[dict]:
+    """Diferencias que el informe debe declarar en vez de ocultar rechazándose.
+
+    Rechazar la salida escondía la limitación; anotarla la pone en la figura.
+    ADR 002 lo decide así, con la excepción de HARD_PROTOCOL_KEYS.
+    """
     if len(results) < 2 or len({result["label"] for result in results}) != len(results):
         raise ValueError("Se requieren al menos dos modelos con etiquetas únicas.")
-    reference = results[0]
-    for result in results:
-        if result["protocol"] != reference["protocol"]:
-            raise ValueError("No comparar métricas con distinto protocolo, test, N o muestreo.")
-        if result["provenance"]["contract"] != reference["provenance"]["contract"]:
-            raise ValueError("Los contratos de entrenamiento son diferentes.")
-        if (
-            result["generation"]["hardware"] != reference["generation"]["hardware"]
-            or result["generation"]["count"] != reference["generation"]["count"]
-        ):
-            raise ValueError("La comparación de coste requiere mismo hardware y número generado.")
-        if result["provenance"]["initialization"] in {"random", "pretrained"}:
-            run = result.get("run_summary") or {}
-            budget = result["provenance"]["contract"]["max_steps"]
-            if not allow_partial and (
-                run.get("status") != "completed" or run.get("completed_steps") != budget
-            ):
+    reference, found = results[0], []
+    for result in results[1:]:
+        label = result["label"]
+        for key in HARD_PROTOCOL_KEYS:
+            if result["protocol"].get(key) != reference["protocol"].get(key):
                 raise ValueError(
-                    "Entrenamiento incompleto/desconocido; --allow-partial solo para exploración."
+                    f"{key} difiere entre {reference['label']!r} y {label!r}: no es una "
+                    "divergencia de perfil sino contaminación entre train y test."
                 )
-            if not allow_partial:
-                contract = result["provenance"]["contract"]
-                expected = (
-                    budget * contract.get("batch_size", 1) * contract.get("accumulation_steps", 1)
-                )
-                if run.get("consumed_images") != expected:
-                    raise ValueError("No coincide el presupuesto de imágenes consumidas.")
+        soft = _differing_keys(
+            {k: v for k, v in result["protocol"].items() if k not in HARD_PROTOCOL_KEYS},
+            {k: v for k, v in reference["protocol"].items() if k not in HARD_PROTOCOL_KEYS},
+        )
+        if soft:
+            found.append({"kind": "protocolo", "label": label, "detail": soft})
+        contract, ref_contract = (
+            result["provenance"]["contract"],
+            reference["provenance"]["contract"],
+        )
+        if contract != ref_contract:
+            found.append(
+                {
+                    "kind": "contrato_de_entrenamiento",
+                    "label": label,
+                    "detail": _differing_keys(contract, ref_contract),
+                }
+            )
+        if result["generation"]["hardware"] != reference["generation"]["hardware"]:
+            found.append(
+                {
+                    "kind": "hardware_de_inferencia",
+                    "label": label,
+                    "detail": {
+                        "referencia": reference["generation"]["hardware"].get("name"),
+                        "este": result["generation"]["hardware"].get("name"),
+                    },
+                    "note": "El coste no se compara entre equipos distintos.",
+                }
+            )
+        if result["generation"]["count"] != reference["generation"]["count"]:
+            found.append(
+                {
+                    "kind": "n_generado",
+                    "label": label,
+                    "detail": {
+                        "referencia": reference["generation"]["count"],
+                        "este": result["generation"]["count"],
+                    },
+                }
+            )
+    for result in results:
+        if result["provenance"]["initialization"] not in {"random", "pretrained"}:
+            continue
+        run = result.get("run_summary") or {}
+        contract = result["provenance"]["contract"]
+        budget = contract["max_steps"]
+        if run.get("status") != "completed" or run.get("completed_steps") != budget:
+            found.append(
+                {
+                    "kind": "presupuesto_incompleto",
+                    "label": result["label"],
+                    "detail": {
+                        "status": run.get("status"),
+                        "completed_steps": run.get("completed_steps"),
+                        "max_steps": budget,
+                    },
+                }
+            )
+            continue
+        expected = budget * contract.get("batch_size", 1) * contract.get("accumulation_steps", 1)
+        if run.get("consumed_images") != expected:
+            found.append(
+                {
+                    "kind": "imagenes_consumidas",
+                    "label": result["label"],
+                    "detail": {"esperado": expected, "registrado": run.get("consumed_images")},
+                }
+            )
+    return found
+
+
+def assert_comparable(results: list[dict], *, allow_partial=False) -> None:
+    """Rechazo duro: lo usan la ablación y `report --strict`."""
+    found = divergences(results)
+    if allow_partial:
+        found = [item for item in found if item["kind"] not in BUDGET_KINDS]
+    if found:
+        raise ValueError(f"Resultados no comparables: {found}")
 
 
 def evaluate(

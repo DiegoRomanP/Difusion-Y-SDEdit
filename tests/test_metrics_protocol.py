@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import pytest
 
-from pc3.metrics import assert_comparable, metric_protocol
+from pc3.metrics import assert_comparable, divergences, metric_protocol
 
 
 def example(label="A"):
@@ -14,18 +14,35 @@ def example(label="A"):
     }
 
 
-def test_different_sample_counts_cannot_be_compared():
+def test_different_sample_counts_are_declared_not_hidden():
     a, b = example(), example("B")
     b["protocol"]["num_images"] = 999
-    with pytest.raises(ValueError, match="protocolo"):
+    assert [item["kind"] for item in divergences([a, b])] == ["protocolo"]
+    with pytest.raises(ValueError, match="no comparables"):
         assert_comparable([a, b])
 
 
-def test_different_training_contracts_cannot_be_compared():
+def test_different_training_contracts_are_declared_not_hidden():
     a, b = example(), example("B")
     b["provenance"]["contract"]["max_steps"] = 20
-    with pytest.raises(ValueError, match="entrenamiento"):
-        assert_comparable([a, b])
+    declared = divergences([a, b])
+    assert [item["kind"] for item in declared] == ["contrato_de_entrenamiento"]
+    assert declared[0]["detail"] == ["max_steps"]
+
+
+def test_a_different_test_split_is_contamination_not_a_divergence():
+    """Cambiar la partición o el manifiesto invalida el número, no lo empeora."""
+    a, b = example(), example("B")
+    b["protocol"]["split"] = "val"
+    with pytest.raises(ValueError, match="contaminación"):
+        divergences([a, b])
+
+
+def test_different_inference_hardware_is_recorded_as_a_divergence():
+    a, b = example(), example("B")
+    b["generation"]["hardware"] = {"name": "OtraGPU"}
+    declared = divergences([a, b])
+    assert [item["kind"] for item in declared] == ["hardware_de_inferencia"]
 
 
 def test_partial_training_must_be_explicit():
@@ -56,5 +73,8 @@ def test_complete_status_is_not_enough_if_image_budget_differs():
     a, b = example(), example("B")
     b["provenance"]["initialization"] = "pretrained"
     b["run_summary"] = {"status": "completed", "completed_steps": 10, "consumed_images": 9}
-    with pytest.raises(ValueError, match="imágenes"):
+    assert [item["kind"] for item in divergences([a, b])] == ["imagenes_consumidas"]
+    with pytest.raises(ValueError, match="imagenes_consumidas"):
         assert_comparable([a, b])
+    # --allow-partial sigue siendo lo único que tolera un presupuesto distinto.
+    assert_comparable([a, b], allow_partial=True)

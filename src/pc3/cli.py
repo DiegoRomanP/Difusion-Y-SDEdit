@@ -68,7 +68,9 @@ def parser() -> argparse.ArgumentParser:
     reporting.add_argument("--runs", nargs="*", type=Path, default=[])
     reporting.add_argument("--diagnostics", nargs="*", type=Path, default=[])
     reporting.add_argument("--output", type=Path, default=Path("reports/comparison"))
-    reporting.add_argument("--allow-partial", action="store_true")
+    reporting.add_argument(
+        "--strict", action="store_true", help="Rechazar en vez de declarar divergencias"
+    )
     ablation = commands.add_parser(
         "ablation-report", help="Graficar calidad/tiempo frente a pasos en val"
     )
@@ -185,7 +187,7 @@ def main(argv=None) -> None:
             from pc3.reporting import report
 
             result = report(
-                args.metrics, output=args.output, runs=args.runs, allow_partial=args.allow_partial
+                args.metrics, output=args.output, runs=args.runs, strict=args.strict
             )
             if args.diagnostics:
                 from pc3.diagnostics import plot_diagnostics
