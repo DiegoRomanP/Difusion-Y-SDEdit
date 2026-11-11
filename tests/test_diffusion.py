@@ -49,26 +49,8 @@ def test_sampling_seed_is_per_image_without_using_a_real_model(sampler):
     assert model.training  # El muestreador restaura el modo previo.
 
 
-def test_old_checkpoint_cannot_silently_initialize_missing_weights(monkeypatch):
-    model = SimpleNamespace(config=unet_config())
-    monkeypatch.setattr(
-        "pc3.model.UNet2DModel.from_pretrained",
-        lambda *args, **kwargs: (model, {"missing_keys": ["layer.weight"]}),
-    )
-    with pytest.raises(ValueError, match="silenciosamente"):
-        create_model(Config(), pretrained=True)
-
-
-def test_pretrained_source_is_pinned_and_never_loads_remote_code(monkeypatch):
-    model = SimpleNamespace(config=unet_config())
-    captured = {}
-
-    def fake_download(*args, **kwargs):
-        captured.update(kwargs)
-        return model, {"missing_keys": [], "unexpected_keys": []}
-
-    monkeypatch.setattr("pc3.model.UNet2DModel.from_pretrained", fake_download)
-    assert create_model(Config(), pretrained=True) is model
-    assert captured["revision"] == Config().pretrained_revision
-    assert captured["output_loading_info"] is True
-    assert "trust_remote_code" not in captured
+def test_create_model_builds_from_the_named_architecture_config():
+    model = create_model(Config())
+    architecture = unet_config(Config().arch)
+    assert model.config["block_out_channels"] == architecture["block_out_channels"]
+    assert model.config["sample_size"] == architecture["sample_size"]

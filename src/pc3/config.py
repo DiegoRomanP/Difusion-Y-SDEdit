@@ -1,7 +1,6 @@
 """Configuración única para notebook/CLI; validación sin descargar ni cargar modelos."""
 
 import math
-import re
 import tomllib
 from dataclasses import asdict, dataclass, fields
 from importlib.resources import files
@@ -17,8 +16,6 @@ class Config:
     data_dir: str = "data/raw"
     manifest: str = "data/manifest.json"
     runs_dir: str = "runs"
-    pretrained_id: str = "anton-l/ddpm-ema-flowers-64"
-    pretrained_revision: str = "dc3af58142513ad2e41e94b57a35ec3a04286a94"
     batch_size: int = 1
     accumulation_steps: int = 16
     max_steps: int = 30000
@@ -73,14 +70,6 @@ class Config:
             raise ValueError("sampling_steps <=1000 y sample_count >=2.")
         if self.kid_subset_size < 2:
             raise ValueError("kid_subset_size debe ser >=2.")
-        # ADR 002 retira la referencia preentrenada: un perfil puede no usarla.
-        # Si se declara, sigue exigiéndose el SHA completo; ambas o ninguna.
-        if bool(self.pretrained_id.strip()) != bool(self.pretrained_revision.strip()):
-            raise ValueError("pretrained_id y pretrained_revision van juntos o vacíos.")
-        if self.pretrained_revision.strip() and not re.fullmatch(
-            r"[0-9a-f]{40}", self.pretrained_revision
-        ):
-            raise ValueError("Fijar pretrained_revision a un commit SHA completo.")
         for name in ("data_dir", "manifest", "runs_dir", "dataset_handle"):
             if not getattr(self, name).strip():
                 raise ValueError(f"{name} no puede estar vacío.")

@@ -37,16 +37,15 @@ def parser() -> argparse.ArgumentParser:
     training = commands.add_parser(
         "train", help="Entrenar una inicialización con el contrato común"
     )
-    training.add_argument("--init", choices=["random", "pretrained"], default="random")
     destination = training.add_mutually_exclusive_group(required=True)
     destination.add_argument("--run", help="Nombre de la ejecución bajo runs_dir")
     destination.add_argument("--run-dir", type=Path, help="Ruta explícita, para casos raros")
     training.add_argument("--resume", action="store_true")
     training.add_argument("--device", default="cuda")
     sampling = commands.add_parser("sample", help="Obtener imágenes/GIF y medir inferencia")
-    source = sampling.add_mutually_exclusive_group(required=True)
-    source.add_argument("--weights", type=Path, help="best.safetensors o last.safetensors local")
-    source.add_argument("--pretrained", action="store_true", help="Referencia abierta sin adaptar")
+    sampling.add_argument(
+        "--weights", type=Path, required=True, help="best.safetensors o last.safetensors local"
+    )
     sampling.add_argument("--output", type=Path, required=True)
     sampling.add_argument("--label")
     sampling.add_argument("--count", type=int)
@@ -140,7 +139,6 @@ def main(argv=None) -> None:
             run = args.run_dir or Path(config.runs_dir) / args.run
             result = train(
                 config,
-                initialization=args.init,
                 run_dir=run,
                 resume=args.resume,
                 device_name=args.device,
@@ -155,9 +153,7 @@ def main(argv=None) -> None:
                 updates["sampling_steps"] = args.steps
             config = replace(config, **updates)
             config.validate()
-            label = args.label or (
-                args.weights.parent.name if args.weights else "pretrained_reference"
-            )
+            label = args.label or args.weights.parent.name
             result = generate(
                 config,
                 output=args.output,

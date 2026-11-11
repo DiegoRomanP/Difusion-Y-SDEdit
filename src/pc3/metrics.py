@@ -111,8 +111,6 @@ def divergences(results: list[dict]) -> list[dict]:
                 }
             )
     for result in results:
-        if result["provenance"]["initialization"] not in {"random", "pretrained"}:
-            continue
         run = result.get("run_summary") or {}
         contract = result["provenance"]["contract"]
         budget = contract["max_steps"]

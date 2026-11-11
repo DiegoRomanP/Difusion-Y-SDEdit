@@ -5,17 +5,22 @@ DDPM propio a 64×64 sobre [Anime Face Dataset](https://www.kaggle.com/datasets/
 y reescala sus muestras a 256×256 con un modelo de superresolución preentrenado.
 Incluye entrenamiento reanudable, inferencia, FID/KID, diagnósticos y gráficos.
 
-**Estado (10 de noviembre de 2026).** El experimento anterior —comparar inicialización
-aleatoria contra fine-tuning de pesos abiertos— **se ejecutó completo** en una RTX 3060
-de 12 GB y sus evidencias están en `reports/`. [ADR 002](docs/decisions/002-cascada-superresolucion.md)
-retira esa comparación: aislar el efecto de la inicialización obliga a copiar la
-arquitectura del checkpoint ajeno, y ese candado limitaba la calidad. El proyecto pasa
-a una cascada difusión + superresolución con arquitectura libre.
+**Estado (11 de noviembre de 2026).** [ADR 002](docs/decisions/002-cascada-superresolucion.md)
+retiró la comparación de inicialización (aleatoria vs. fine-tuning de pesos abiertos):
+aislar ese efecto obligaba a copiar la arquitectura del checkpoint ajeno, y ese candado
+limitaba la calidad. El proyecto pasa a una cascada difusión + superresolución con
+arquitectura libre, **sin brazo preentrenado/fine-tuning**.
 
-Lo decidido en ADR 002 **todavía no está implementado**. Lo que falta va marcado
-**(pendiente)** en este documento. El notebook y la presentación siguen describiendo la
-comparación retirada; se reescriben cuando existan los resultados nuevos. Exposición:
-viernes **13 de noviembre de 2026**.
+El entrenamiento de la etapa 1 (`anime64`, arquitectura libre) **se ejecutó completo**
+en la RTX 4070 Ti: 87 274/87 274 updates, `status: completed`, MSE de validación
+0.02388. Muestreo, FID/KID y diagnósticos ya corrieron sobre esos pesos:
+**FID 10.099, KID 0.003942 ± 0.000463** (test, DDIM 50, N según protocolo). El código
+que sostenía el brazo preentrenado/fine-tuning (CLI, `Config`, `create_model`,
+perfiles y pruebas de la RTX 3060) ya se retiró del repositorio.
+
+**Pendiente:** la etapa 2 (superresolución A/B con Real-ESRGAN vs. bicúbica) y
+reescribir el notebook y la presentación, que todavía describen la comparación
+retirada. Exposición: viernes **13 de noviembre de 2026**.
 
 ## 1. Entorno: trabajar siempre dentro de pc3/
 
@@ -68,8 +73,11 @@ verdad de terreno a 256; reescalar también las reales mediría el parecido con 
 reescaladas, no realismo. Detalle en el [protocolo](docs/protocolo_experimental.md).
 
 Lo que ya **no** se hace: cargar `anton-l/ddpm-ema-flowers-64`, entrenar un segundo
-modelo y enfrentar inicializaciones. Esas evidencias se conservan como referencia
-histórica, descritas en el protocolo y en [ADR 001](docs/decisions/001-experimento-controlado.md).
+modelo y enfrentar inicializaciones. Esa comparación y el código que la sostenía
+(`--init pretrained`, `sample --pretrained`, los perfiles de la RTX 3060, la
+arquitectura `flores64`) se retiraron del repositorio; lo que queda de esas evidencias
+es el resumen numérico en [ADR 001](docs/decisions/001-experimento-controlado.md) y en
+[ADR 002](docs/decisions/002-cascada-superresolucion.md), no los artefactos originales.
 
 ## 3. Descargar y preparar datos
 
@@ -104,21 +112,20 @@ La arquitectura pasa a formar parte del perfil, con su hash registrado en `run.j
 **(pendiente)**. Hoy sigue fijada en `src/pc3/assets/unet_config.json` y comprobada por
 huella en `src/pc3/model.py`.
 
-| Parámetro | Anterior (ADR 001) | Vigente (ADR 002) |
+| Parámetro | Anterior (ADR 001, retirado) | Vigente (ADR 002) |
 |---|---|---|
 | Bloques | 6 | 4 |
 | `block_out_channels` | `[128,128,256,256,512,512]` | `[128,256,384,512]` |
 | Resoluciones de atención | 4×4 (y 2×2 intermedio) | **16×16 y 8×8** |
 | `attention_head_dim` | 8 | 64 |
-| Parámetros | 113.7 M | menor, a medir |
+| Parámetros | 113.7 M | **88.2 M** (medido: `parameter_count` en `run.json`) |
 
-Perfiles en `configs/`. El de la noche de trabajo es `configs/rtx4070ti_12gb.toml`
-**(pendiente)**: lote mayor y, a decidir, bf16. La 3060 registró
-`skipped_fp16_attempts: 8`, pero la calibración de la 4070 Ti dio **0**, así que fp16 es
-estable en esa tarjeta; bf16 se prefiere por rango dinámico y por no necesitar
-GradScaler, no por corregir un fallo observado allí. `configs/rtx3060_12gb.toml` es el perfil que
-produjo las evidencias históricas; `configs/rtx3060_8gb.toml` sigue siendo el valor por
-defecto de `--config` en `src/pc3/cli.py` y debe actualizarse **(pendiente)**.
+Perfiles en `configs/`. El de la noche de trabajo, `configs/rtx4070ti_12gb.toml`, ya
+corrió completo con lote físico 32, EMA en CUDA y fp16: la calibración de la 4070 Ti dio
+`skipped_fp16_attempts: 0`, así que fp16 es estable en esa tarjeta. `--config` no tiene
+valor por defecto en `src/pc3/cli.py`: hay que pasarlo siempre explícitamente. Los
+perfiles de la RTX 3060 (`rtx3060_8gb.toml`, `rtx3060_12gb.toml`) y la arquitectura
+`flores64` que fijaban se retiraron junto con la comparación de ADR 001.
 
 Constantes en ambas etapas: RGB 64×64, 1000 pasos de difusión con beta lineal
 0.0001…0.02, predicción de ruido, AdamW con warmup y coseno, EMA 0.999 en CPU,
@@ -153,14 +160,14 @@ uv run --no-sync python main.py --config configs/rtx4070ti_12gb.toml calibrate -
 ```
 
 ```bash
-uv run --no-sync python main.py --config configs/rtx4070ti_12gb.toml train --init random
+uv run --no-sync python main.py --config configs/rtx4070ti_12gb.toml train --run anime64_4070ti
 ```
 
-Con ADR 002 solo hay un entrenamiento. `--init pretrained` sigue existiendo en la CLI y
-queda fuera del experimento vigente. Para reanudar tras una pausa:
+Con ADR 002 hay un solo entrenamiento, siempre con inicialización aleatoria: la CLI ya
+no tiene `--init` ni soporta pesos preentrenados. Para reanudar tras una pausa:
 
 ```bash
-uv run --no-sync python main.py --config configs/rtx4070ti_12gb.toml train --init random --resume
+uv run --no-sync python main.py --config configs/rtx4070ti_12gb.toml train --run anime64_4070ti --resume
 ```
 
 `Ctrl+C` solicita terminar el update actual y guardar; no cerrar a la fuerza si se quiere
@@ -171,7 +178,7 @@ retirar **solo ese archivo**. No borrar pesos o datos para intentar arreglar pro
 Para seguir el avance con registro legible y log en archivo:
 
 ```bash
-uv run --no-sync python tools/entrenar_con_registro.py --config configs/rtx4070ti_12gb.toml train --init random
+uv run --no-sync python tools/entrenar_con_registro.py --config configs/rtx4070ti_12gb.toml train --run anime64_4070ti
 ```
 
 Escribe `reports/evidencia/log_<run>.log`, así que se puede consultar reconectando sin

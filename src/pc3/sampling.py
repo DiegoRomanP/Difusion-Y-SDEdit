@@ -14,7 +14,7 @@ from tqdm.auto import tqdm
 
 from pc3.config import Config, training_contract
 from pc3.io import file_sha256, read_json, source_fingerprint, write_json
-from pc3.model import create_model, load_weights, noise_scheduler
+from pc3.model import load_weights, noise_scheduler
 
 
 def device_info(device: torch.device) -> dict:
@@ -98,16 +98,15 @@ def generate(
     config: Config,
     *,
     output: Path,
-    weights: Path | None,
+    weights: Path,
     device_name="cuda",
     sampler="ddim",
     label="modelo",
 ) -> dict:
-    """La referencia sin adaptar se selecciona con weights=None; descarga solo al invocarla."""
     config.validate()
     device = require_device(device_name)
     output = Path(output)
-    source_hash = file_sha256(weights) if weights else config.pretrained_revision
+    source_hash = file_sha256(weights)
     request = {
         "schema": 1,
         "label": label,
@@ -132,49 +131,39 @@ def generate(
             raise ValueError("No escribir resultados a través de enlaces simbólicos.")
     write_json(output / "request.json", request)
     run_summary = None
-    if weights:
-        run_file = Path(weights).parent / "run.json"
-        if run_file.is_file():
-            run = read_json(run_file)
-            if run["versions"]["pc3_source_sha256"] != request["pc3_source_sha256"]:
-                raise ValueError(
-                    "El código cambió desde el entrenamiento; conservar el código original."
-                )
-            if run["status"] in {"training", "initializing"}:
-                raise ValueError(
-                    "Esperar a que termine/se pause train; ya guarda previews periódicos."
-                )
-            run_summary = {
-                key: run[key]
-                for key in (
-                    "run_id",
-                    "status",
-                    "completed_steps",
-                    "consumed_images",
-                    "wall_seconds",
-                    "parameter_count",
-                    "hardware",
-                    "versions",
-                )
-            }
-        model, provenance = load_weights(weights)
-        if file_sha256(weights) != source_hash:
-            raise ValueError("Los pesos cambiaron mientras se cargaban; repetir sin train activo.")
-        if run_summary and run_summary["run_id"] != provenance["run_id"]:
-            raise ValueError("Los pesos y run.json pertenecen a ejecuciones distintas.")
-        if provenance["manifest_sha256"] != request["manifest_sha256"]:
-            raise ValueError("Los pesos se entrenaron con otro manifiesto.")
-        if provenance["contract"] != training_contract(config):
-            raise ValueError("La configuración no corresponde a los pesos entrenados.")
-    else:
-        model = create_model(config, pretrained=True)
-        provenance = {
-            "initialization": "pretrained_reference",
-            "step": 0,
-            "weights": "pretrained",
-            "contract": training_contract(config),
-            "manifest_sha256": request["manifest_sha256"],
+    run_file = Path(weights).parent / "run.json"
+    if run_file.is_file():
+        run = read_json(run_file)
+        if run["versions"]["pc3_source_sha256"] != request["pc3_source_sha256"]:
+            raise ValueError(
+                "El código cambió desde el entrenamiento; conservar el código original."
+            )
+        if run["status"] in {"training", "initializing"}:
+            raise ValueError(
+                "Esperar a que termine/se pause train; ya guarda previews periódicos."
+            )
+        run_summary = {
+            key: run[key]
+            for key in (
+                "run_id",
+                "status",
+                "completed_steps",
+                "consumed_images",
+                "wall_seconds",
+                "parameter_count",
+                "hardware",
+                "versions",
+            )
         }
+    model, provenance = load_weights(weights)
+    if file_sha256(weights) != source_hash:
+        raise ValueError("Los pesos cambiaron mientras se cargaban; repetir sin train activo.")
+    if run_summary and run_summary["run_id"] != provenance["run_id"]:
+        raise ValueError("Los pesos y run.json pertenecen a ejecuciones distintas.")
+    if provenance["manifest_sha256"] != request["manifest_sha256"]:
+        raise ValueError("Los pesos se entrenaron con otro manifiesto.")
+    if provenance["contract"] != training_contract(config):
+        raise ValueError("La configuración no corresponde a los pesos entrenados.")
     model.to(device)
     progress_path = output / "progress.json"
     progress = read_json(progress_path) if progress_path.exists() else {"images": {}, "batches": {}}

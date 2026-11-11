@@ -70,37 +70,8 @@ def q_sample(clean, times, noise, alphas_cumprod):
     return alphas.sqrt() * clean + (1 - alphas).sqrt() * noise
 
 
-def create_model(config: Config, pretrained: bool = False) -> UNet2DModel:
-    architecture = unet_config(config.arch)
-    if pretrained:
-        # Solo state_dict del SHA fijado, sin código remoto. Diffusers 0.42.1 usa
-        # torch.load(weights_only=True) para el .bin antiguo; no activar pickle libre.
-        # https://github.com/huggingface/diffusers/blob/v0.42.1/src/diffusers/models/model_loading_utils.py
-        model, loading = UNet2DModel.from_pretrained(
-            config.pretrained_id,
-            subfolder="unet",
-            revision=config.pretrained_revision,
-            use_safetensors=False,
-            low_cpu_mem_usage=False,
-            output_loading_info=True,
-        )
-        if any(
-            loading.get(key)
-            for key in ("missing_keys", "unexpected_keys", "mismatched_keys", "error_msgs")
-        ):
-            raise ValueError(
-                "La conversión del checkpoint antiguo no fue estricta; "
-                "no se aceptarán parámetros inicializados silenciosamente al azar."
-            )
-        # Un checkpoint ajeno solo sirve si su forma coincide con la pedida; un
-        # modelo recién construido ya es, por definición, su propia arquitectura.
-        for key, expected in architecture.items():
-            if not key.startswith("_") and fingerprint(model.config[key]) != fingerprint(expected):
-                raise ValueError(
-                    f"El checkpoint preentrenado no es de la arquitectura {config.arch!r}: {key}"
-                )
-        return model
-    return UNet2DModel.from_config(architecture)
+def create_model(config: Config) -> UNet2DModel:
+    return UNet2DModel.from_config(unet_config(config.arch))
 
 
 class ExponentialMovingAverage:

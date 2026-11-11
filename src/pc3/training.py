@@ -110,12 +110,8 @@ def _write_history(path, rows):
     temporary.replace(path)
 
 
-def train(
-    config: Config, *, initialization: str, run_dir: Path, resume=False, device_name="cuda"
-) -> dict:
+def train(config: Config, *, run_dir: Path, resume=False, device_name="cuda") -> dict:
     config.validate()
-    if initialization not in {"random", "pretrained"}:
-        raise ValueError("Inicialización random o pretrained requerida.")
     device = require_device(device_name)  # Fallar antes de cualquier descarga de pesos.
     manifest = load_manifest(config.manifest)
     if manifest["seed"] != config.seed:
@@ -128,12 +124,8 @@ def train(
         if not metadata_path.is_file() or not checkpoint_path.is_file():
             raise FileNotFoundError("No hay run.json/latest.pt reanudables en ese directorio.")
         metadata = read_json(metadata_path)
-        if (
-            metadata["contract"] != contract
-            or metadata["manifest_sha256"] != digest
-            or metadata["initialization"] != initialization
-        ):
-            raise ValueError("No cambiar datos, inicialización o contrato al reanudar.")
+        if metadata["contract"] != contract or metadata["manifest_sha256"] != digest:
+            raise ValueError("No cambiar datos o contrato al reanudar.")
         if metadata["versions"] != runtime_versions() or metadata["hardware"] != device_info(
             device
         ):
@@ -147,7 +139,6 @@ def train(
         metadata = {
             "schema": 1,
             "run_id": str(uuid.uuid4()),
-            "initialization": initialization,
             "created_utc": datetime.now(UTC).isoformat(),
             "configuration": asdict(config),
             "contract": contract,
@@ -169,22 +160,20 @@ def train(
             "antes de retirar manualmente .training.lock."
         ) from error
     try:
-        return _train_locked(config, initialization, run_dir, resume, device, manifest, metadata)
+        return _train_locked(config, run_dir, resume, device, manifest, metadata)
     finally:
         # Solo retirar el archivo que acabamos de crear, no un bloqueo ajeno.
         if lock_path.is_file() and lock_path.read_text() == lock_id:
             lock_path.unlink()
 
 
-def _train_locked(config, initialization, run_dir, resume, device, manifest, metadata):
+def _train_locked(config, run_dir, resume, device, manifest, metadata):
     # Reduce fuentes de variabilidad; no promete identidad bit a bit entre GPUs.
     # https://docs.pytorch.org/docs/stable/notes/randomness.html
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
     torch.manual_seed(config.seed)
-    model = create_model(config, pretrained=initialization == "pretrained" and not resume).to(
-        device
-    )
+    model = create_model(config).to(device)
     model.train().requires_grad_(True)
     if config.gradient_checkpointing:
         model.enable_gradient_checkpointing()
@@ -279,7 +268,6 @@ def _train_locked(config, initialization, run_dir, resume, device, manifest, met
             row["val_mse"] = validation_loss(model, val_loader, config, device, alphas)
             provenance = {
                 "run_id": metadata["run_id"],
-                "initialization": initialization,
                 "contract": metadata["contract"],
                 "manifest_sha256": metadata["manifest_sha256"],
                 "step": step,
@@ -316,7 +304,7 @@ def _train_locked(config, initialization, run_dir, resume, device, manifest, met
             evaluate_and_preview(initial)
             history.append(initial)
             checkpoint()
-        progress = tqdm(total=config.max_steps, initial=step, desc=initialization)
+        progress = tqdm(total=config.max_steps, initial=step, desc=config.arch)
         while step < config.max_steps and not stop_requested:
             synchronize(device)
             begin = time.perf_counter()
