@@ -1,9 +1,8 @@
-"""Configuración única para notebook/CLI; validación sin descargar ni cargar modelos."""
+"""Perfil del experimento (TOML en configs/) y lectura/escritura de JSON."""
 
-import math
+import json
 import tomllib
-from dataclasses import asdict, dataclass, fields
-from importlib.resources import files
+from dataclasses import dataclass, fields
 from pathlib import Path
 
 
@@ -11,93 +10,50 @@ from pathlib import Path
 class Config:
     seed: int = 2026
     image_size: int = 64
-    arch: str = "anime64"
     dataset_handle: str = "splcher/animefacedataset/versions/3"
     data_dir: str = "data/raw"
-    manifest: str = "data/manifest.json"
+    splits_file: str = "data/dataset_splits.json"
     runs_dir: str = "runs"
-    batch_size: int = 1
-    accumulation_steps: int = 16
-    max_steps: int = 30000
-    learning_rate: float = 0.0001
+    # Entrenamiento
+    batch_size: int = 32
+    accumulation_steps: int = 1
+    max_steps: int = 60000
+    learning_rate: float = 0.0002
     weight_decay: float = 0.000001
-    warmup_steps: int = 500
+    warmup_steps: int = 1000
     ema_decay: float = 0.999
-    ema_device: str = "cpu"
+    ema_device: str = "cuda"
     amp: bool = True
-    gradient_checkpointing: bool = True
+    gradient_checkpointing: bool = False
     num_workers: int = 2
     log_every: int = 50
-    checkpoint_every: int = 500
-    validate_every: int = 500
+    checkpoint_every: int = 1000
+    validate_every: int = 1000
     validation_images: int = 256
+    # Generación y evaluación
     sampling_steps: int = 50
-    sample_batch_size: int = 4
+    sample_batch_size: int = 32
     sample_count: int = 5000
     sample_seed: int = 12345
     kid_subset_size: int = 1000
     kid_subsets: int = 50
 
-    def validate(self) -> None:
-        for field in fields(self):
-            value = getattr(self, field.name)
-            expected = type(field.default)
-            if expected is float:
-                valid = type(value) in (int, float) and math.isfinite(value)
-            else:
-                valid = type(value) is expected
-            if not valid:
-                raise ValueError(f"Tipo/valor inválido para {field.name}: {value!r}")
-            if expected is int and (
-                value < 0
-                or (
-                    value == 0
-                    and field.name not in {"seed", "num_workers", "warmup_steps", "sample_seed"}
-                )
-            ):
-                raise ValueError(f"{field.name} debe ser positivo (o cero si corresponde).")
-        if not files("pc3").joinpath(f"assets/arch/{self.arch}.json").is_file():
-            raise ValueError(f"Arquitectura desconocida: {self.arch!r}")
-        if self.image_size < 32 or self.image_size % 8:
-            raise ValueError("image_size debe ser >=32 y múltiplo de 8.")
-        if self.learning_rate <= 0 or self.weight_decay < 0:
-            raise ValueError("learning_rate debe ser >0 y weight_decay >=0.")
-        if not 0 < self.ema_decay < 1 or self.ema_device not in {"cpu", "cuda"}:
-            raise ValueError("EMA requiere 0<ema_decay<1 y ema_device cpu/cuda.")
-        if self.warmup_steps >= self.max_steps:
-            raise ValueError("warmup_steps debe ser menor que max_steps.")
-        if self.sampling_steps > 1000 or self.sample_count < 2:
-            raise ValueError("sampling_steps <=1000 y sample_count >=2.")
-        if self.kid_subset_size < 2:
-            raise ValueError("kid_subset_size debe ser >=2.")
-        for name in ("data_dir", "manifest", "runs_dir", "dataset_handle"):
-            if not getattr(self, name).strip():
-                raise ValueError(f"{name} no puede estar vacío.")
-
 
 def load_config(path: str | Path) -> Config:
-    """Rechaza errores tipográficos en vez de ignorar parámetros del experimento."""
+    """Una clave desconocida en el TOML casi siempre es un error de tipeo: se rechaza."""
     with Path(path).open("rb") as file:
         values = tomllib.load(file)
     unknown = values.keys() - {field.name for field in fields(Config)}
     if unknown:
-        raise ValueError(f"Parámetros desconocidos: {sorted(unknown)}")
-    config = Config(**values)
-    config.validate()
-    return config
+        raise ValueError(f"Parámetros desconocidos en {path}: {sorted(unknown)}")
+    return Config(**values)
 
 
-def training_contract(config: Config) -> dict:
-    """Contrato comparable: se excluyen ubicación, salida y opciones solo de inferencia."""
-    excluded = {
-        "data_dir",
-        "manifest",
-        "runs_dir",
-        "sampling_steps",
-        "sample_batch_size",
-        "sample_count",
-        "sample_seed",
-        "kid_subset_size",
-        "kid_subsets",
-    }
-    return {key: value for key, value in asdict(config).items() if key not in excluded}
+def read_json(path: str | Path):
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def write_json(path: str | Path, value) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

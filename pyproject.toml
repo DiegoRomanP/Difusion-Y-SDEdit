@@ -1,7 +1,7 @@
 [project]
 name = "pc3"
 version = "0.1.0"
-description = "DDPM para rostros anime: entrenamiento desde cero y fine-tuning reproducible"
+description = "DDPM no condicionado para rostros anime 64x64 y exploración SDEdit"
 readme = "README.md"
 authors = [
     { name = "Diego Roman", email = "diego.roman.1234.dr@gmail.com" }
@@ -21,9 +21,6 @@ dependencies = [
     "torchmetrics==1.9.0",
     "tqdm>=4.67,<5",
 ]
-
-[project.scripts]
-pc3 = "pc3:main"
 
 [build-system]
 requires = ["uv_build>=0.13.5,<0.14.0"]
@@ -62,12 +59,13 @@ explicit = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "scripts"]
 addopts = "-ra"
 
 [tool.ruff]
 target-version = "py313"
 line-length = 100
+extend-exclude = ["old"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

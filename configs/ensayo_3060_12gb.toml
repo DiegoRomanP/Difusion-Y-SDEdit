@@ -1,13 +1,11 @@
-# Ensayo de extremo a extremo en la RTX 3060 local: recorre entrenar, muestrear,
-# evaluar, diagnosticar, informar y empaquetar con el mismo código de la noche,
-# pero en minutos. NO es evidencia de calidad ni de convergencia: 60 updates no
-# entrenan nada. Sirve para que la noche no sea la primera ejecución del código.
+# Ensayo rápido de punta a punta (minutos): entrenar, generar y evaluar con el
+# mismo código que el perfil real. NO es evidencia de calidad: 60 updates no
+# entrenan nada. Sirve para comprobar que todo corre antes de una corrida larga.
 seed = 2026
 image_size = 64
-arch = "anime64"
 dataset_handle = "splcher/animefacedataset/versions/3"
 data_dir = "data/raw"
-manifest = "data/manifest.json"
+splits_file = "data/dataset_splits.json"
 runs_dir = "runs"
 batch_size = 32
 accumulation_steps = 1

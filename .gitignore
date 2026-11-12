@@ -12,10 +12,10 @@ wheels/
 # Datos, pesos y resultados reales: nunca forman parte del código entregable.
 # `data/*` y no `data/`: con el directorio excluido git no desciende y la
 # negación es inalcanzable. La negación va DESPUÉS: gana el último patrón.
-# El manifiesto se versiona porque define qué imágenes quedaron en test;
+# Las particiones se versionan porque definen qué imágenes quedaron en test;
 # regenerarlo en otra máquina movería al train imágenes que estaban en test.
 data/*
-!data/manifest.json
+!data/dataset_splits.json
 
 runs/
 reports/
@@ -36,6 +36,3 @@ access_token
 *.safetensors
 *.zip
 
-# Renders individuales de revisión: el PPTX, PDF y la vista general sí se entregan.
-presentacion/vistas/
-presentacion/pc3-render-*/
