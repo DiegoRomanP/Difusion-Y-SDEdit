@@ -25,12 +25,18 @@ Los extras `cpu` y `cu128` son excluyentes. No instalar con `pip`.
 ## Un script por tarea
 
 Todos se ejecutan con `uv run python scripts/<script>.py --help`, que muestra el uso
-completo. Los parámetros del experimento vienen de un perfil TOML en `configs/`.
+completo. La configuración tiene dos niveles:
+
+- **`configs/proyecto.toml`**: datos, semilla, generación y evaluación. Es una sola y
+  queda fija; todos los scripts la leen solos.
+- **`configs/entrenamiento/<gpu>.toml`**: lo que depende de la GPU (lote, updates,
+  memoria, frecuencia de validación). Lo pide `train.py` con `--profile`. Para una GPU
+  nueva, `calibrate.py --hours N` lo genera solo.
 
 | Script | Qué hace | Salida |
 |---|---|---|
 | `prepare_dataset.py` | Descarga el dataset (`--download`) y lo reparte en train/val/test sin casi duplicados entre particiones | `data/dataset_splits.json` |
-| `calibrate.py` | Mide segundos por update y VRAM de **entrenamiento** con datos sintéticos, y proyecta las horas | `reports/calibration/<gpu>.json` |
+| `calibrate.py` | Prueba lote físico y ubicación de la EMA con datos sintéticos, elige lo más rápido que cabe en la VRAM y calcula los updates para `--hours` | `configs/entrenamiento/<gpu>.toml`, `reports/calibration/<gpu>.json` |
 | `train.py` | Entrena; Ctrl+C guarda y `--resume` continúa | `runs/<run>/` |
 | `generate_images.py` | Genera N caras con unos pesos y mide la **inferencia** | `images/`, `grid.png`, `denoising.gif`, `generation.json` |
 | `evaluate_quality.py` | FID/KID contra test, diversidad entre generadas y vecino más cercano en train | `quality.json`, `nearest_training.png` |
@@ -39,25 +45,26 @@ completo. Los parámetros del experimento vienen de un perfil TOML en `configs/`
 Flujo completo:
 
 ```bash
-P=configs/rtx4070ti_12gb.toml
-uv run python scripts/prepare_dataset.py --config $P --download
-uv run python scripts/calibrate.py --config $P --updates 20
-uv run python scripts/train.py --config $P --run anime64_4070ti
-uv run python scripts/generate_images.py --config $P \
-    --weights runs/anime64_4070ti/best.safetensors --output reports/samples/anime64_4070ti
-uv run python scripts/evaluate_quality.py --config $P --samples reports/samples/anime64_4070ti
+P=configs/entrenamiento/rtx4070ti_12gb.toml
+uv run python scripts/prepare_dataset.py --download
+uv run python scripts/calibrate.py --hours 6        # opcional: perfil para una GPU nueva
+uv run python scripts/train.py --profile $P --run anime64_4070ti
+uv run python scripts/generate_images.py --weights runs/anime64_4070ti/best.safetensors \
+    --output reports/samples/anime64_4070ti
+uv run python scripts/evaluate_quality.py --samples reports/samples/anime64_4070ti
 uv run python scripts/sdedit.py --weights runs/anime64_4070ti/best.safetensors \
     --source data/real_faces_demo
 ```
 
-`configs/ensayo_3060_12gb.toml` es el mismo flujo en minutos (60 updates, 64 muestras).
-Sirve para comprobar que todo corre, no para obtener resultados.
+Para comprobar en minutos que todo corre, sin obtener resultados válidos: entrenar con
+`--profile configs/entrenamiento/ensayo_rapido.toml` (60 updates), generar con
+`--count 64` y evaluar con `--num-images 64`.
 
 ## Código
 
 ```text
 src/pc3/            lo que comparten los scripts
-  config.py         perfil TOML (Config) y JSON
+  config.py         lee configs/proyecto.toml y los perfiles de entrenamiento
   data.py           recorte 64×64, dHash, lectura de particiones
   model.py          U-Net, programa de ruido, EMA, guardar/cargar pesos
   inference.py      muestreo DDIM/DDPM y SDEdit

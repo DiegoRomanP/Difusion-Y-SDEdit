@@ -1,4 +1,5 @@
-# Perfil con el que se entrenó anime64_4070ti en la RTX 4070 Ti de 12 GB.
+# Entrenamiento en GPU de 12 GB. Con este perfil se entrenó anime64_4070ti
+# en una RTX 4070 Ti (~5.8 h).
 #
 # Rendimiento medido en una RTX 3060 de 12 GB (ms por imagen, lote físico 32):
 #   checkpointing on,  EMA en CPU   21.8
@@ -7,15 +8,9 @@
 # El lote 96 desborda a RAM compartida en Windows y hunde el rendimiento a
 # ~49-89 ms por imagen: no subir el lote físico sin volver a medir con
 # scripts/calibrate.py.
-seed = 2026
-image_size = 64
-dataset_handle = "splcher/animefacedataset/versions/3"
-data_dir = "data/raw"
-splits_file = "data/dataset_splits.json"
-runs_dir = "runs"
 batch_size = 32
 accumulation_steps = 1
-max_steps = 87274  # lo que corrió anime64_4070ti (~5.8 h en la 4070 Ti)
+max_steps = 87274
 learning_rate = 0.0002
 weight_decay = 0.000001
 warmup_steps = 1000
@@ -28,9 +23,3 @@ log_every = 50
 checkpoint_every = 1000
 validate_every = 1000
 validation_images = 256
-sampling_steps = 50
-sample_batch_size = 32
-sample_count = 5000
-sample_seed = 12345
-kid_subset_size = 1000
-kid_subsets = 50

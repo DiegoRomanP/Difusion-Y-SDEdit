@@ -1,7 +1,7 @@
 """Genera caras anime desde ruido con unos pesos entrenados y mide la inferencia.
 
-    uv run python scripts/generate_images.py --config configs/rtx4070ti_12gb.toml \
-        --weights runs/anime64_4070ti/best.safetensors --output reports/samples/anime64_4070ti
+    uv run python scripts/generate_images.py --weights runs/anime64_4070ti/best.safetensors \
+        --output reports/samples/anime64_4070ti
 
 Escribe en --output:
   images/000000.png …   una imagen por semilla (sample_seed + índice)
@@ -9,8 +9,8 @@ Escribe en --output:
   denoising.gif         cómo el ruido se convierte en cara (primera semilla)
   generation.json       muestreador, pasos, segundos por imagen y VRAM de inferencia
 
-Por defecto genera `sample_count` imágenes con `sampling_steps` pasos DDIM; --count y
---steps lo cambian sin editar el perfil.
+Por defecto genera `sample_count` imágenes con `sampling_steps` pasos DDIM, ambos de
+configs/proyecto.toml; --count y --steps los cambian para una sola ejecución.
 """
 
 import argparse
@@ -23,7 +23,7 @@ import torch
 from PIL import Image
 from tqdm.auto import tqdm
 
-from pc3.config import load_config, write_json
+from pc3.config import load_project, write_json
 from pc3.inference import sample_tensor, save_grid, to_pil
 from pc3.model import device_info, get_device, load_weights
 
@@ -32,7 +32,6 @@ def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--weights", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--label", help="Nombre del modelo en los informes (def.: carpeta del run)")
@@ -40,12 +39,14 @@ def main():
     parser.add_argument("--steps", type=int)
     parser.add_argument("--sampler", choices=["ddim", "ddpm"], default="ddim")
     parser.add_argument("--device", default="cuda")
+    parser.add_argument("--no-amp", action="store_true", help="Generar en fp32")
     args = parser.parse_args()
 
-    cfg = load_config(args.config)
-    count = args.count or cfg.sample_count
-    steps = args.steps or cfg.sampling_steps
+    project = load_project()
+    count = args.count or project.sample_count
+    steps = args.steps or project.sampling_steps
     device = get_device(args.device)
+    amp = not args.no_amp
     model, weights_metadata = load_weights(args.weights)
     model.to(device)
     image_dir = args.output / "images"
@@ -58,26 +59,26 @@ def main():
             steps=steps,
             sampler=args.sampler,
             device=device,
-            amp=cfg.amp,
+            amp=amp,
             capture=capture,
         )
 
     # Calentamiento fuera de la medición (arranque de CUDA).
-    sample_tensor(model, seeds=[cfg.sample_seed], steps=1, device=device, amp=cfg.amp)
+    sample_tensor(model, seeds=[project.sample_seed], steps=1, device=device, amp=amp)
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats(device)
     seconds = 0.0  # Solo el muestreo; guardar los PNG no cuenta.
-    for start in tqdm(range(0, count, cfg.sample_batch_size), desc="generando"):
-        stop = min(count, start + cfg.sample_batch_size)
+    for start in tqdm(range(0, count, project.sample_batch_size), desc="generando"):
+        stop = min(count, start + project.sample_batch_size)
         begin = time.perf_counter()
-        images, _ = generate(list(range(cfg.sample_seed + start, cfg.sample_seed + stop)))
+        images, _ = generate(list(range(project.sample_seed + start, project.sample_seed + stop)))
         seconds += time.perf_counter() - begin  # .cpu() al final del muestreo ya sincroniza.
         for index, tensor in zip(range(start, stop), images, strict=True):
             to_pil(tensor).save(image_dir / f"{index:06}.png")
     peak = torch.cuda.max_memory_allocated(device) / 1024**3 if device.type == "cuda" else 0
 
     # El GIF va en una pasada aparte: capturar cuadros copia a CPU y falsearía el tiempo.
-    _, frames = generate([cfg.sample_seed], capture=True)
+    _, frames = generate([project.sample_seed], capture=True)
     imageio.mimsave(
         args.output / "denoising.gif", [np.array(f) for f in frames], duration=0.15, loop=0
     )
@@ -92,9 +93,9 @@ def main():
         "sampler": args.sampler,
         "steps": steps,
         "count": count,
-        "seed": cfg.sample_seed,
-        "batch_size": cfg.sample_batch_size,
-        "amp": cfg.amp,
+        "seed": project.sample_seed,
+        "batch_size": project.sample_batch_size,
+        "amp": amp,
         "hardware": device_info(device),
         "inference_seconds": seconds,
         "seconds_per_image": seconds / count,

@@ -1,52 +1,75 @@
-"""Perfil del experimento (TOML en configs/) y lectura/escritura de JSON."""
+"""Configuración en dos niveles y lectura/escritura de JSON.
+
+- configs/proyecto.toml: datos, generación y evaluación. Un solo archivo fijo; todos los
+  scripts lo leen solos.
+- configs/entrenamiento/<gpu>.toml: cómo entrenar en una GPU concreta (lote, updates,
+  memoria). Solo lo piden train.py y calibrate.py, con --profile.
+"""
 
 import json
 import tomllib
 from dataclasses import dataclass, fields
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[2]
+PROJECT_FILE = ROOT / "configs" / "proyecto.toml"
+PATH_FIELDS = {"data_dir", "splits_file", "runs_dir"}
+
 
 @dataclass(frozen=True)
-class Config:
-    seed: int = 2026
-    image_size: int = 64
-    dataset_handle: str = "splcher/animefacedataset/versions/3"
-    data_dir: str = "data/raw"
-    splits_file: str = "data/dataset_splits.json"
-    runs_dir: str = "runs"
-    # Entrenamiento
-    batch_size: int = 32
-    accumulation_steps: int = 1
-    max_steps: int = 60000
-    learning_rate: float = 0.0002
-    weight_decay: float = 0.000001
-    warmup_steps: int = 1000
-    ema_decay: float = 0.999
-    ema_device: str = "cuda"
-    amp: bool = True
-    gradient_checkpointing: bool = False
-    num_workers: int = 2
-    log_every: int = 50
-    checkpoint_every: int = 1000
-    validate_every: int = 1000
-    validation_images: int = 256
-    # Generación y evaluación
-    sampling_steps: int = 50
-    sample_batch_size: int = 32
-    sample_count: int = 5000
-    sample_seed: int = 12345
-    kid_subset_size: int = 1000
-    kid_subsets: int = 50
+class Project:
+    seed: int
+    image_size: int
+    dataset_handle: str
+    data_dir: Path
+    splits_file: Path
+    runs_dir: Path
+    sampling_steps: int
+    sample_batch_size: int
+    sample_count: int
+    sample_seed: int
+    kid_subset_size: int
+    kid_subsets: int
 
 
-def load_config(path: str | Path) -> Config:
-    """Una clave desconocida en el TOML casi siempre es un error de tipeo: se rechaza."""
+@dataclass(frozen=True)
+class Training:
+    batch_size: int
+    accumulation_steps: int
+    max_steps: int
+    learning_rate: float
+    weight_decay: float
+    warmup_steps: int
+    ema_decay: float
+    ema_device: str
+    amp: bool
+    gradient_checkpointing: bool
+    num_workers: int
+    log_every: int
+    checkpoint_every: int
+    validate_every: int
+    validation_images: int
+
+
+def _load(cls, path: Path):
+    """Una clave desconocida o ausente casi siempre es un error de tipeo: se rechaza."""
     with Path(path).open("rb") as file:
         values = tomllib.load(file)
-    unknown = values.keys() - {field.name for field in fields(Config)}
-    if unknown:
-        raise ValueError(f"Parámetros desconocidos en {path}: {sorted(unknown)}")
-    return Config(**values)
+    expected = {field.name for field in fields(cls)}
+    if values.keys() != expected:
+        raise ValueError(
+            f"{path}: sobran {sorted(values.keys() - expected)}, "
+            f"faltan {sorted(expected - values.keys())}"
+        )
+    return cls(**{k: ROOT / v if k in PATH_FIELDS else v for k, v in values.items()})
+
+
+def load_project() -> Project:
+    return _load(Project, PROJECT_FILE)
+
+
+def load_training(path: str | Path) -> Training:
+    return _load(Training, path)
 
 
 def read_json(path: str | Path):
@@ -56,4 +79,5 @@ def read_json(path: str | Path):
 def write_json(path: str | Path, value) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    text = json.dumps(value, indent=2, ensure_ascii=False, default=str)
+    path.write_text(text + "\n", encoding="utf-8")

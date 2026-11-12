@@ -1,0 +1,19 @@
+# Ensayo de minutos para comprobar que el entrenamiento corre de punta a punta
+# antes de una corrida larga. NO es evidencia de calidad: 60 updates no
+# entrenan nada. Para ensayar la generación y la evaluación, usar
+# generate_images.py --count 64 y evaluate_quality.py --num-images 64.
+batch_size = 32
+accumulation_steps = 1
+max_steps = 60
+learning_rate = 0.0002
+weight_decay = 0.000001
+warmup_steps = 10
+ema_decay = 0.999
+ema_device = "cuda"
+amp = true
+gradient_checkpointing = false
+num_workers = 2
+log_every = 10
+checkpoint_every = 30
+validate_every = 30
+validation_images = 64

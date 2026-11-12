@@ -1,10 +1,10 @@
 """Descarga Anime Face Dataset y lo reparte en train/val/test (80/10/10).
 
-    uv run python scripts/prepare_dataset.py --config configs/rtx4070ti_12gb.toml --download
-    uv run python scripts/prepare_dataset.py --config configs/rtx4070ti_12gb.toml
+    uv run python scripts/prepare_dataset.py --download
+    uv run python scripts/prepare_dataset.py
 
---download baja el dataset a `data_dir` con KaggleHub (credenciales de Kaggle del equipo).
-Sin --download usa lo que ya haya en `data_dir`.
+Rutas y semilla salen de configs/proyecto.toml. --download baja el dataset a `data_dir`
+con KaggleHub (credenciales de Kaggle del equipo); sin él usa lo que ya haya allí.
 
 Reparto: cada imagen se recorta a 64x64; las ilegibles y los duplicados exactos se
 descartan; las casi duplicadas (dHash igual, también en espejo) forman un grupo que va
@@ -21,7 +21,7 @@ from pathlib import Path
 
 from PIL import Image, UnidentifiedImageError
 
-from pc3.config import load_config, write_json
+from pc3.config import load_project, write_json
 from pc3.data import canonical_image, mirror_dhash
 
 EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
@@ -78,28 +78,27 @@ def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--download", action="store_true", help="Bajar el dataset con KaggleHub")
     args = parser.parse_args()
-    cfg = load_config(args.config)
+    project = load_project()
 
     if args.download:
         import kagglehub
 
-        data_dir = Path(cfg.data_dir).resolve()
+        data_dir = Path(project.data_dir).resolve()
         if data_dir.exists() and any(data_dir.iterdir()):
             raise SystemExit(f"{data_dir} no está vacío; quitar --download para usarlo.")
         print(
             "Descargado en",
-            kagglehub.dataset_download(cfg.dataset_handle, output_dir=str(data_dir)),
+            kagglehub.dataset_download(project.dataset_handle, output_dir=str(data_dir)),
         )
 
-    output = Path(cfg.splits_file)
+    output = Path(project.splits_file)
     if output.exists():
         raise SystemExit(
             f"{output} ya existe. Borrarlo a mano solo si de verdad hay que rehacer test."
         )
-    splits = create_splits(Path(cfg.data_dir), image_size=cfg.image_size, seed=cfg.seed)
+    splits = create_splits(Path(project.data_dir), image_size=project.image_size, seed=project.seed)
     write_json(output, splits)
     print(f"{splits['counts']} | excluidas {splits['excluded']} → {output}")
 

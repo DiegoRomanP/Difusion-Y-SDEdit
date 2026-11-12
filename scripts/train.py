@@ -1,7 +1,11 @@
-"""Entrena el DDPM de rostros anime con un perfil de configs/.
+"""Entrena el DDPM de rostros anime.
 
-    uv run python scripts/train.py --config configs/rtx4070ti_12gb.toml --run mi_corrida
-    uv run python scripts/train.py --config configs/rtx4070ti_12gb.toml --run mi_corrida --resume
+    P=configs/entrenamiento/rtx4070ti_12gb.toml
+    uv run python scripts/train.py --profile $P --run mi_corrida
+    uv run python scripts/train.py --profile $P --run mi_corrida --resume
+
+--profile trae lo que depende de la GPU (lote, updates, memoria); datos y semilla salen
+de configs/proyecto.toml.
 
 Escribe en runs/<run>/:
   latest.pt          estado completo para reanudar (modelo, optimizador, EMA, azar)
@@ -31,7 +35,7 @@ from PIL import ImageOps
 from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 
-from pc3.config import load_config, write_json
+from pc3.config import load_project, load_training, write_json
 from pc3.data import canonical_image, load_splits, split_records
 from pc3.inference import sample_tensor, save_grid, to_pil, to_tensor
 from pc3.model import (
@@ -99,14 +103,14 @@ def learning_rate_at(step, cfg) -> float:
 
 
 @torch.inference_mode()
-def validation_loss(model, loader, cfg, device, alphas, use_amp) -> float:
+def validation_loss(model, loader, seed, device, alphas, use_amp) -> float:
     """Mismo ruido y mismo t por imagen en cada validación, para que las curvas sean comparables."""
     model.eval()
     total, count = 0.0, 0
     for clean in loader:
         noises, times = [], []
         for index in range(count, count + len(clean)):
-            rng = torch.Generator().manual_seed(cfg.seed + 1_000_000 + index)
+            rng = torch.Generator().manual_seed(seed + 1_000_000 + index)
             times.append(torch.randint(1000, (1,), generator=rng))
             noises.append(torch.randn((3, 64, 64), generator=rng))
         clean = clean.to(device)
@@ -131,30 +135,33 @@ def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument(
+        "--profile", type=Path, required=True, help="configs/entrenamiento/<gpu>.toml"
+    )
     parser.add_argument("--run", required=True, help="Nombre de la carpeta dentro de runs_dir")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--device", default="cuda")
     args = parser.parse_args()
 
-    cfg = load_config(args.config)
+    project = load_project()
+    cfg = load_training(args.profile)
     device = get_device(args.device)
     use_amp = cfg.amp and device.type == "cuda"
-    run_dir = Path(cfg.runs_dir) / args.run
+    run_dir = Path(project.runs_dir) / args.run
     if not args.resume and run_dir.exists() and any(run_dir.iterdir()):
         raise SystemExit(f"{run_dir} ya existe: usar --resume u otro --run.")
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    splits = load_splits(cfg.splits_file)
+    splits = load_splits(project.splits_file)
     train_records = split_records(splits, "train")
     val_records = split_records(splits, "val")
-    random.Random(cfg.seed).shuffle(val_records)
+    random.Random(project.seed).shuffle(val_records)
     val_records = val_records[: cfg.validation_images]
 
     # Reduce variabilidad; no promete resultados idénticos bit a bit entre GPUs.
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
-    torch.manual_seed(cfg.seed)
+    torch.manual_seed(project.seed)
     model = create_model().to(device).train()
     if cfg.gradient_checkpointing:
         model.enable_gradient_checkpointing()
@@ -163,8 +170,8 @@ def main():
     )
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
     ema = ExponentialMovingAverage(model, cfg.ema_decay, cfg.ema_device)
-    noise_rng = torch.Generator(device=device).manual_seed(cfg.seed)
-    torch.manual_seed(cfg.seed + 7)
+    noise_rng = torch.Generator(device=device).manual_seed(project.seed)
+    torch.manual_seed(project.seed + 7)
     step, microstep, best, wall_before, skipped, history = 0, 0, math.inf, 0.0, 0, []
 
     if args.resume:
@@ -186,18 +193,18 @@ def main():
         "pin_memory": device.type == "cuda",
         "persistent_workers": cfg.num_workers > 0,
         # Generador propio: reconstruir el DataLoader al reanudar no consume el azar global.
-        "generator": torch.Generator().manual_seed(cfg.seed + 5),
+        "generator": torch.Generator().manual_seed(project.seed + 5),
     }
-    sampler = ReplayBatchSampler(len(train_records), cfg.batch_size, cfg.seed, start=microstep)
+    sampler = ReplayBatchSampler(len(train_records), cfg.batch_size, project.seed, start=microstep)
     batches = iter(
         DataLoader(
-            FaceDataset(cfg.data_dir, train_records, cfg.seed, augment=True),
+            FaceDataset(project.data_dir, train_records, project.seed, augment=True),
             batch_sampler=sampler,
             **loader_options,
         )
     )
     val_loader = DataLoader(
-        FaceDataset(cfg.data_dir, val_records, cfg.seed),
+        FaceDataset(project.data_dir, val_records, project.seed),
         batch_size=cfg.batch_size,
         **loader_options,
     )
@@ -221,13 +228,15 @@ def main():
     def validate_and_preview(row):
         nonlocal best
         with ema.apply(model):
-            row["val_mse"] = validation_loss(model, val_loader, cfg, device, alphas, use_amp)
+            row["val_mse"] = validation_loss(
+                model, val_loader, project.seed, device, alphas, use_amp
+            )
             if row["val_mse"] < best:
                 best = row["val_mse"]
                 save_weights(model, run_dir / "best.safetensors", weights_metadata(best))
             images = []
-            for start in range(0, len(PREVIEW_SEEDS), cfg.sample_batch_size):
-                seeds = PREVIEW_SEEDS[start : start + cfg.sample_batch_size]
+            for start in range(0, len(PREVIEW_SEEDS), project.sample_batch_size):
+                seeds = PREVIEW_SEEDS[start : start + project.sample_batch_size]
                 batch, _ = sample_tensor(
                     model, seeds=seeds, steps=PREVIEW_STEPS, device=device, amp=cfg.amp
                 )
@@ -258,7 +267,9 @@ def main():
             run_dir / "run.json",
             {
                 "status": status,
-                "configuration": asdict(cfg),
+                "profile": args.profile.as_posix(),
+                "training": asdict(cfg),
+                "project": asdict(project),
                 "hardware": device_info(device),
                 "parameter_count": sum(p.numel() for p in model.parameters()),
                 "completed_steps": step,

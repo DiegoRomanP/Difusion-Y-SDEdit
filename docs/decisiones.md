@@ -22,7 +22,8 @@ entrenado con [Anime Face Dataset](https://www.kaggle.com/datasets/splcher/anime
   mide con un ruido y un *t* fijos por imagen, así que es comparable entre validaciones.
 - **Corrida:** `runs/anime64_4070ti` hizo 87 274 updates (2.79 M imágenes vistas, unas
   84 épocas) en una RTX 4070 Ti de 12 GB en 5.8 h. La MSE de validación final fue
-  0.02388. El perfil es `configs/rtx4070ti_12gb.toml`.
+  0.02388. Perfil de entrenamiento:
+  `configs/entrenamiento/rtx4070ti_12gb.toml`; datos y protocolo: `configs/proyecto.toml`.
 
 ## 2. Datos y particiones
 

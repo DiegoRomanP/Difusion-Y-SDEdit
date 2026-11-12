@@ -1,0 +1,22 @@
+# Configuración fija del proyecto: datos, generación y evaluación.
+# Todos los scripts la leen solos. Cambiarla cambia el experimento: el reparto
+# train/val/test y el protocolo de FID/KID dejarían de ser comparables.
+# Los parámetros que dependen de la GPU están en configs/entrenamiento/.
+
+# Datos (rutas relativas a la raíz del repositorio)
+seed = 2026
+image_size = 64
+dataset_handle = "splcher/animefacedataset/versions/3"
+data_dir = "data/raw"
+splits_file = "data/dataset_splits.json"
+runs_dir = "runs"
+
+# Generación (scripts/generate_images.py; --count y --steps los cambian puntualmente)
+sampling_steps = 50
+sample_batch_size = 32
+sample_count = 5000
+sample_seed = 12345
+
+# Evaluación (scripts/evaluate_quality.py)
+kid_subset_size = 1000
+kid_subsets = 50
