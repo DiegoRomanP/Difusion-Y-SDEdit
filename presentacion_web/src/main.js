@@ -28,3 +28,7 @@ deck.on('slidechanged', ({ previousSlide, currentSlide, indexh }) => {
 })
 
 initLab()
+
+// El panel de la derecha cambia de ancho: reveal.js vuelve a calcular la escala mientras dura la animación.
+let relayout = 0
+new ResizeObserver(() => { cancelAnimationFrame(relayout); relayout = requestAnimationFrame(() => deck.layout()) }).observe(document.querySelector('.reveal'))

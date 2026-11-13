@@ -180,17 +180,24 @@
   </div>
 </div>
 <aside id="lab" aria-label="Demostraciones en vivo">
-  <section class="lab" id="labGen">
-    <p class="cap">Generar · 4 imágenes</p>
-    <div class="frame"><canvas width="128" height="128"></canvas><img hidden alt="Resultado completo de las 4 imágenes generadas"></div>
-    <button type="button">EMPEZAR</button>
-  </section>
-  <section class="lab" id="labEdit">
-    <p class="cap">SDEdit · tu imagen</p>
-    <div class="frame"><canvas width="64" height="64"></canvas><img hidden alt="Resultado completo del proceso de SDEdit"></div>
-    <button type="button">EMPEZAR</button>
-    <input type="file" accept="image/*" hidden>
-  </section>
+  <button type="button" id="labToggle" aria-expanded="true" aria-controls="labBody" aria-label="Disminuir el panel" title="Disminuir"><svg class="i-shrink" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 5v6h6M20 4l-7 7M11 19v-6H5M4 20l7-7"/></svg><svg class="i-expand" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7"/></svg></button>
+  <div class="strip" aria-label="Estado de las demostraciones">
+    <span class="ind" id="indLabGen" data-state="idle" role="img" aria-label="Generar 4 imágenes: sin empezar" title="Generar 4 imágenes: sin empezar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></span>
+    <span class="ind" id="indLabEdit" data-state="idle" role="img" aria-label="SDEdit: sin empezar" title="SDEdit: sin empezar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M4 18l5.5-5 3.5 3 3-2.5 4 4.5"/></svg></span>
+  </div>
+  <div id="labBody">
+    <section class="lab" id="labGen">
+      <p class="cap">Generar · 4 imágenes</p>
+      <div class="frame"><canvas width="128" height="128"></canvas><img hidden alt="Resultado completo de las 4 imágenes generadas"></div>
+      <button type="button">EMPEZAR</button>
+    </section>
+    <section class="lab" id="labEdit">
+      <p class="cap">SDEdit · tu imagen</p>
+      <div class="frame"><canvas width="64" height="64"></canvas><img hidden alt="Resultado completo del proceso de SDEdit"></div>
+      <button type="button">EMPEZAR</button>
+      <input type="file" accept="image/*" hidden>
+    </section>
+  </div>
 </aside>
 </div>
 <script type="module" src="/src/main.js"></script>

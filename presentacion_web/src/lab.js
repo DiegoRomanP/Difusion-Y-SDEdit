@@ -7,14 +7,26 @@ const MAX_BYTES = 20 * 1024 * 1024
 
 /** Cuadro + botón. `job({ signal, show })` hace la petición, puede llamar show(bitmap) con una vista previa
  *  y devuelve { frames: [url PNG], gif }. */
-function createLab(root, job, { pickFile = false } = {}) {
+const STATE_TEXT = { idle: 'sin empezar', running: 'en proceso', done: 'completo', error: 'con error' }
+
+function createLab(root, job, { pickFile = false, name = '' } = {}) {
   const canvas = root.querySelector('canvas'), gif = root.querySelector('img')
   const btn = root.querySelector('button'), input = root.querySelector('input')
   const ctx = canvas.getContext('2d')
   ctx.imageSmoothingEnabled = false
   let run = 0, raf = 0
 
-  const label = (text, disabled) => { btn.textContent = text; btn.disabled = !!disabled }
+  const indicator = document.getElementById('ind' + root.id[0].toUpperCase() + root.id.slice(1))
+  const setState = (state) => {
+    if (!indicator) return
+    indicator.dataset.state = state
+    const text = `${name}: ${STATE_TEXT[state]}`
+    indicator.title = text; indicator.setAttribute('aria-label', text)
+  }
+  const label = (text, disabled) => {
+    btn.textContent = text; btn.disabled = !!disabled
+    setState(text === 'EJECUTANDO' ? 'running' : text === 'COMPLETO' ? 'done' : text === 'EMPEZAR' ? 'idle' : 'error')
+  }
   const flash = (id, text) => { label(text, true); setTimeout(() => id === run && label('EMPEZAR'), 2800) }
   const fit = (bitmap) => {
     ctx.globalAlpha = 1; ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -109,6 +121,28 @@ async function generateJob(_, { signal, show }) {
 }
 
 export function initLab() {
-  createLab(document.getElementById('labGen'), generateJob)
-  createLab(document.getElementById('labEdit'), sdeditJob, { pickFile: true })
+  createLab(document.getElementById('labGen'), generateJob, { name: 'Generar 4 imágenes' })
+  createLab(document.getElementById('labEdit'), sdeditJob, { pickFile: true, name: 'SDEdit' })
+  initToggle()
+}
+
+// Plegar/desplegar la columna. Las demostraciones siguen corriendo mientras está plegada.
+function initToggle() {
+  const app = document.getElementById('app'), toggle = document.getElementById('labToggle'), body = document.getElementById('labBody')
+  const apply = (collapsed) => {
+    app.classList.toggle('collapsed', collapsed)
+    body.inert = collapsed
+    toggle.setAttribute('aria-expanded', String(!collapsed))
+    const text = collapsed ? 'Agrandar el panel' : 'Disminuir el panel'
+    toggle.setAttribute('aria-label', text); toggle.title = collapsed ? 'Agrandar' : 'Disminuir'
+  }
+  let collapsed = false
+  try { collapsed = localStorage.getItem('labCollapsed') === '1' } catch { /* sin almacenamiento */ }
+  apply(collapsed)
+  toggle.addEventListener('click', () => {
+    collapsed = !collapsed
+    apply(collapsed)
+    toggle.blur()
+    try { localStorage.setItem('labCollapsed', collapsed ? '1' : '0') } catch { /* sin almacenamiento */ }
+  })
 }

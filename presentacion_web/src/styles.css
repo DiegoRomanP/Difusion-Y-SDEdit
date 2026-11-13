@@ -112,10 +112,12 @@ code { background: var(--plum); color: var(--ink); padding: 1px 8px; border-radi
 .tag { margin: 0; text-align: center; color: var(--glow); font-size: 17px; letter-spacing: .06em; }
 
 /* ---- Cuadro de SDEdit en vivo (columna fija a la derecha, fuera de reveal.js) ---- */
-:root { --panel: clamp(230px, 20vw, 360px); }
-#app { display: grid; grid-template-columns: minmax(0, 1fr) var(--panel); height: 100vh; height: 100dvh; background: var(--night); }
+:root { --panel: clamp(230px, 20vw, 360px); --strip: 64px; }
+#app { --w: var(--panel); display: grid; grid-template-columns: minmax(0, 1fr) var(--w); height: 100vh; height: 100dvh; background: var(--night);
+  transition: grid-template-columns .85s cubic-bezier(.65, 0, .35, 1); }
+#app.collapsed { --w: var(--strip); }
 #app > .reveal { height: 100%; width: auto; }
-#lab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 18px 22px; box-sizing: border-box;
+#lab { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; min-width: 0;
   background: linear-gradient(180deg, var(--night), color-mix(in srgb, var(--plum) 60%, var(--night))); border-left: 1px solid color-mix(in srgb, var(--violet) 55%, transparent); }
 #lab .lab { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
 #lab .cap { margin: 0; font: 600 12px/1 var(--font); letter-spacing: .16em; text-transform: uppercase; color: var(--glow); }
@@ -136,3 +138,35 @@ code { background: var(--plum); color: var(--ink); padding: 1px 8px; border-radi
   #lab .cap { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { #lab button:disabled { animation: none; } }
+
+/* ---- Panel plegable: botón de tamaño + franja con indicadores ---- */
+#labBody { display: flex; flex-direction: column; align-items: center; gap: 16px; flex: none; width: calc(var(--panel) - 44px); padding: 18px 0;
+  transition: opacity .5s ease, visibility 0s linear 0s; }
+#app.collapsed #labBody { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .35s ease, visibility 0s linear .35s; }
+#lab #labToggle { position: absolute; top: 12px; right: 14px; z-index: 3; width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--glow) 55%, transparent); background: color-mix(in srgb, var(--night) 70%, transparent); color: var(--ink); letter-spacing: 0; }
+#labToggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; grid-area: 1 / 1; }
+#labToggle .i-expand { display: none; }
+#app.collapsed #labToggle .i-expand { display: block; }
+#app.collapsed #labToggle .i-shrink { display: none; }
+.strip { position: absolute; inset: 64px 0 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; opacity: 0; visibility: hidden;
+  transition: opacity .5s ease .35s, visibility 0s linear .85s; }
+#app.collapsed .strip { opacity: 1; visibility: visible; transition: opacity .5s ease .45s, visibility 0s; }
+.ind { --c: color-mix(in srgb, var(--mute) 55%, transparent); position: relative; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--c); border: 2px solid var(--c); transition: color .5s, border-color .5s, background .5s; }
+.ind svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ind::after { content: ""; position: absolute; right: -7px; bottom: -7px; width: 17px; height: 17px; border-radius: 50%; display: none; place-items: center; font: 800 11px/1 var(--font); color: var(--night); background: var(--cyan); }
+.ind[data-state="running"] { --c: var(--cyan); animation: indPulse 1.6s ease-in-out infinite; }
+.ind[data-state="running"]::after { content: "…"; display: grid; padding-bottom: 4px; box-sizing: border-box; }
+.ind[data-state="done"] { --c: var(--ink); border-color: var(--glow); background: linear-gradient(135deg, var(--violet), var(--steel)); }
+.ind[data-state="done"]::after { content: "✓"; display: grid; }
+.ind[data-state="error"] { --c: #FF8FA3; }
+.ind[data-state="error"]::after { content: "!"; display: grid; background: #FF8FA3; }
+@keyframes indPulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--cyan) 22%, transparent); } }
+#lab #labToggle:hover { box-shadow: 0 0 18px color-mix(in srgb, var(--glow) 55%, transparent); transform: none; }
+@media (max-width: 820px) {
+  #app { transition: grid-template-rows .85s cubic-bezier(.65, 0, .35, 1); }
+  #app.collapsed { grid-template-rows: minmax(0, 1fr) var(--strip); }
+  #labBody { width: auto; flex-direction: row; padding: 0 56px 0 0; }
+  .strip { inset: 0 64px 0 0; flex-direction: row; }
+}
+@media (prefers-reduced-motion: reduce) { #app, #labBody, .strip { transition: none; } .ind[data-state="running"] { animation: none; } }
