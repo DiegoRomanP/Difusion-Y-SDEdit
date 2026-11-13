@@ -66,19 +66,33 @@ def sample_tensor(model, *, seeds, steps=50, sampler="ddim", device, amp=True, c
     )
 
 
-def sdedit(model, photo, *, strength, steps=50, sampler="ddim", seed=12345, device, amp=True):
+def sdedit(
+    model, photo, *, strength, steps=50, sampler="ddim", seed=12345, device, amp=True, capture=False
+):
     """Difumina `photo` (1,3,64,64 en [-1,1]) hasta un paso intermedio y sigue desde ahí.
 
     strength=0 casi no cambia la foto; strength=1 recorre todo el programa de ruido, como
     una generación libre. No es traducción controlada: el modelo nunca vio fotos reales.
+
+    Con capture=True devuelve (resultado, cuadros): la foto yendo hacia el ruido (proceso
+    directo, 4 cuadros con el mismo ruido) y luego ~12 cuadros de la eliminación de ruido.
     """
     scheduler = _scheduler(sampler, steps, device)
     first = steps - max(1, min(steps, round(steps * strength)))
     timesteps = scheduler.timesteps[first:]
     noise = torch.randn(photo.shape, generator=torch.Generator().manual_seed(seed)).to(device)
     image = scheduler.add_noise(photo.to(device), noise, timesteps[:1])
-    result, _ = _denoise(model, image, scheduler, timesteps, sampler=sampler, seeds=[seed], amp=amp)
-    return result
+    result, frames = _denoise(
+        model, image, scheduler, timesteps, sampler=sampler, seeds=[seed], amp=amp, capture=capture
+    )
+    if not capture:
+        return result
+    marks = torch.linspace(0, int(timesteps[0]), 6).round().long()[1:-1]
+    forward = [
+        to_pil(scheduler.add_noise(photo.to(device), noise, t.reshape(1).to(device))[0])
+        for t in marks
+    ]
+    return result, forward + frames
 
 
 def to_pil(tensor) -> Image.Image:
