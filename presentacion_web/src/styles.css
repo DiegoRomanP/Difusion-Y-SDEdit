@@ -149,9 +149,9 @@ code { background: var(--plum); color: var(--ink); padding: 1px 8px; border-radi
 #labToggle .i-expand { display: none; }
 #app.collapsed #labToggle .i-expand { display: block; }
 #app.collapsed #labToggle .i-shrink { display: none; }
-.strip { position: absolute; inset: 64px 0 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; opacity: 0; visibility: hidden;
+.lab-strip { position: absolute; inset: 64px 0 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; opacity: 0; visibility: hidden;
   transition: opacity .5s ease .35s, visibility 0s linear .85s; }
-#app.collapsed .strip { opacity: 1; visibility: visible; transition: opacity .5s ease .45s, visibility 0s; }
+#app.collapsed .lab-strip { opacity: 1; visibility: visible; transition: opacity .5s ease .45s, visibility 0s; }
 .ind { --c: color-mix(in srgb, var(--mute) 55%, transparent); position: relative; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--c); border: 2px solid var(--c); transition: color .5s, border-color .5s, background .5s; }
 .ind svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .ind::after { content: ""; position: absolute; right: -7px; bottom: -7px; width: 17px; height: 17px; border-radius: 50%; display: none; place-items: center; font: 800 11px/1 var(--font); color: var(--night); background: var(--cyan); }
@@ -167,6 +167,6 @@ code { background: var(--plum); color: var(--ink); padding: 1px 8px; border-radi
   #app { transition: grid-template-rows .85s cubic-bezier(.65, 0, .35, 1); }
   #app.collapsed { grid-template-rows: minmax(0, 1fr) var(--strip); }
   #labBody { width: auto; flex-direction: row; padding: 0 56px 0 0; }
-  .strip { inset: 0 64px 0 0; flex-direction: row; }
+  .lab-strip { inset: 0 64px 0 0; flex-direction: row; }
 }
-@media (prefers-reduced-motion: reduce) { #app, #labBody, .strip { transition: none; } .ind[data-state="running"] { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #app, #labBody, .lab-strip { transition: none; } .ind[data-state="running"] { animation: none; } }
