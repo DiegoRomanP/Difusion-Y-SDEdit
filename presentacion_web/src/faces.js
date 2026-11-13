@@ -8,12 +8,12 @@ export function drawFace(size = 128, bg = null) {
   if (bg) { g.fillStyle = bg; g.fillRect(0, 0, size, size) }
   g.scale(size / 128, size / 128)
   const ell = (x, y, rx, ry, fill) => { g.fillStyle = fill; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.fill() }
-  ell(64, 62, 52, 56, '#5B3EA4')
+  ell(64, 62, 52, 56, '#C2306A')
   ell(64, 74, 38, 42, '#FFE3D6')
-  g.fillStyle = '#8A68E0'
+  g.fillStyle = '#FF6F96'
   g.beginPath(); g.moveTo(20, 64); g.quadraticCurveTo(64, -6, 108, 64); g.quadraticCurveTo(92, 42, 80, 54); g.quadraticCurveTo(64, 30, 48, 54); g.quadraticCurveTo(36, 42, 20, 64); g.fill()
   for (const x of [46, 82]) {
-    ell(x, 78, 10, 13, '#FFFFFF'); ell(x, 80, 7.5, 10.5, '#2F7BC2'); ell(x, 81, 3.6, 6.5, '#19082D'); ell(x - 2.5, 75, 2.6, 2.6, '#FFFFFF')
+    ell(x, 78, 10, 13, '#FFFFFF'); ell(x, 80, 7.5, 10.5, '#2BB3E8'); ell(x, 81, 3.6, 6.5, '#19082D'); ell(x - 2.5, 75, 2.6, 2.6, '#FFFFFF')
   }
   ell(36, 94, 7, 4, 'rgba(255,120,150,.6)'); ell(92, 94, 7, 4, 'rgba(255,120,150,.6)')
   g.strokeStyle = '#8A3A55'; g.lineWidth = 2.6; g.lineCap = 'round'

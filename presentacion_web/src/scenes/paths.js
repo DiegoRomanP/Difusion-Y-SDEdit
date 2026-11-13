@@ -17,9 +17,9 @@ export default (canvas) => {
     return (p) => { for (let i = 0; i < n; i++) (i / n <= p ? base : dim).toArray(col, i * 3); geo.attributes.color.needsUpdate = true }
   }
   const a = path(1.35, 1000, 0.55, 0.06, PAL.glow)
-  const b = path(-1.35, 50, 0.3, 0.2, PAL.cyan)
+  const b = path(-1.35, 50, 0.3, 0.2, PAL.coral)
   const ta = label('DDPM · 1000 evaluaciones', { scale: 0.6, size: 52, color: '#A98BFF' }); ta.position.set(0, 2.3, 0)
-  const tb = label('DDIM · 50 evaluaciones', { scale: 0.6, size: 52, color: '#6FC3FF' }); tb.position.set(0, -0.35, 0)
+  const tb = label('DDIM · 50 evaluaciones', { scale: 0.6, size: 52, color: '#FF5C8A' }); tb.position.set(0, -0.35, 0)
   const noiseL = label('ruido', { scale: 0.55, size: 50, color: '#C9BEE6', weight: 500 }); noiseL.position.set(-3.8, -2.35, 0)
   const dataL = label('rostro', { scale: 0.55, size: 50, color: '#C9BEE6', weight: 500 }); dataL.position.set(3.8, -2.35, 0)
   g.add(ta, tb, noiseL, dataL)

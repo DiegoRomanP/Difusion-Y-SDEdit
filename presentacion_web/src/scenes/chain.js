@@ -10,14 +10,14 @@ export default (canvas) => {
   const planes = abs.map((ab, i) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8), new THREE.MeshBasicMaterial({ map: noisyTexture(ab, 96, 11 + i) }))
     m.position.copy(pos[i])
-    const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(1.86, 1.86)), new THREE.LineBasicMaterial({ color: PAL.glow }))
+    const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(1.86, 1.86)), new THREE.LineBasicMaterial({ color: i === 0 ? PAL.coral : i === 5 ? PAL.cyan : PAL.glow }))
     frame.position.copy(pos[i])
     const l = label(names[i], { scale: 0.5, size: 62 }); l.position.set(pos[i].x, pos[i].y - 1.2, 0)
     st.scene.add(m, frame, l)
     return m
   })
-  const top = label('directo: añade ruido (fórmula)', { scale: 0.5, size: 44, color: '#6FC3FF' }); top.position.set(0, 2.9, 0)
-  const bot = label('inverso: la U-Net quita el ruido', { scale: 0.5, size: 44, color: '#A98BFF' }); bot.position.set(0, -3.35, 0)
+  const top = label('directo: añade ruido (fórmula)', { scale: 0.5, size: 44, color: '#4FD1FF' }); top.position.set(0, 2.9, 0)
+  const bot = label('inverso: la U-Net quita el ruido', { scale: 0.5, size: 44, color: '#FF5C8A' }); bot.position.set(0, -3.35, 0)
   st.scene.add(top, bot)
   for (let i = 0; i < 5; i++) st.scene.add(glowLine([pos[i], pos[i + 1]], PAL.violet, 0.9))
   const token = new THREE.Mesh(new THREE.SphereGeometry(0.17, 24, 24), new THREE.MeshBasicMaterial({ color: PAL.cyan }))
@@ -29,7 +29,7 @@ export default (canvas) => {
     const p = (fwd ? ease(u / 0.5) : 1 - ease((u - 0.5) / 0.5)) * 5
     const i = Math.min(4, Math.floor(p))
     token.position.lerpVectors(pos[i], pos[i + 1], p - i); token.position.z = 0.2
-    token.material.color.setHex(fwd ? PAL.cyan : PAL.glow)
+    token.material.color.setHex(fwd ? PAL.cyan : PAL.coral)
     planes.forEach((m, k) => m.scale.setScalar(1 + 0.1 * Math.max(0, 1 - Math.abs(p - k))))
   }
   return st

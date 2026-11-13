@@ -16,7 +16,7 @@ export default (canvas) => {
     m.position.set(cols[i], 0, 0)
     g.add(m)
     const l = label(`${ch}`, { scale: 0.5, size: 60 }); l.position.set(cols[i], -hOf(res) / 2 - 0.35, 0.6); g.add(l)
-    if (lv >= 2) { const a = label('atención', { scale: 0.4, size: 46, color: '#6FC3FF', weight: 500 }); a.position.set(cols[i], hOf(res) / 2 + 0.3, 0.6); g.add(a) }
+    if (lv >= 2) { const a = label('atención', { scale: 0.4, size: 46, color: '#FFC24B', weight: 500 }); a.position.set(cols[i], hOf(res) / 2 + 0.3, 0.6); g.add(a) }
     return m
   })
   const cap = label('codificador · cuello · decodificador', { scale: 0.5, size: 44, color: '#C9BEE6', weight: 500 }); cap.position.set(0, -2.35, 0.2); g.add(cap)
@@ -28,10 +28,10 @@ export default (canvas) => {
     g.add(new THREE.Mesh(new THREE.TubeGeometry(c, 40, 0.03, 8), new THREE.MeshBasicMaterial({ color: PAL.cyan, transparent: true, opacity: 0.55 })))
     skips.push(c)
   }
-  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.17, 20, 20), new THREE.MeshBasicMaterial({ color: PAL.glow }))
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.17, 20, 20), new THREE.MeshBasicMaterial({ color: PAL.amber }))
   g.add(orb)
   const io = (txt, x, c) => { const l = label(txt, { scale: 0.55, size: 52, color: c }); l.position.set(x, 2.9, 0); g.add(l) }
-  io('xₜ + t', -3, '#6FC3FF'); io('ε̂', 3, '#A98BFF')
+  io('xₜ + t', -3, '#4FD1FF'); io('ε̂', 3, '#FF5C8A')
   st.fn = (t) => {
     const u = (t % 9) / 9
     const k = ease(u)

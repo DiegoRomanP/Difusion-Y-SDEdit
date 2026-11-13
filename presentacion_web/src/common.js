@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
 export { THREE }
-export const PAL = { violet: 0x5B3EA4, steel: 0x275883, indigo: 0x2A336C, plum: 0x46194A, night: 0x19082D, glow: 0xA98BFF, cyan: 0x6FC3FF }
+export const PAL = { violet: 0x5B3EA4, steel: 0x275883, indigo: 0x2A336C, plum: 0x46194A, night: 0x19082D, glow: 0xA98BFF, cyan: 0x4FD1FF, coral: 0xFF5C8A, amber: 0xFFC24B }
 export const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
 export const ease = (x) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x) }

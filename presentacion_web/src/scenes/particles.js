@@ -1,4 +1,4 @@
-import { THREE, createStage, ease, PAL } from '../common.js'
+import { THREE, createStage, ease } from '../common.js'
 import { faceSamples } from '../faces.js'
 
 // Nube de partículas: ruido -> rostro. loop=true repite (portada); loop=false forma el rostro y se queda (cierre).
@@ -8,7 +8,6 @@ export const makeParticles = (loop) => (canvas) => {
   const samples = faceSamples(N, 1.7)
   const noise = new Float32Array(N * 3), target = new Float32Array(N * 3), delay = new Float32Array(N)
   const pos = new Float32Array(N * 3), col = new Float32Array(N * 3)
-  const violet = new THREE.Color(PAL.glow)
   for (let i = 0; i < N; i++) {
     const [x, y, r, g, b] = samples[i]
     target.set([x, y, 0], i * 3)
@@ -39,7 +38,6 @@ export const makeParticles = (loop) => (canvas) => {
     }
     geo.attributes.position.needsUpdate = true
     pts.rotation.y = Math.sin(t * 0.25) * 0.25 * (1 - e * 0.7)
-    mat.color.copy(violet)
   }
   return st
 }

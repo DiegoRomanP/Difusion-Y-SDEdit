@@ -5,8 +5,8 @@ export default (canvas) => {
   const st = createStage(canvas, { z: 14, y: 0, fov: 42, staticT: 4 })
   lights(st.scene)
   const nodes = [
-    ['Datos', '63 565 → 41 522', PAL.steel], ['Particiones', 'dHash · 33 218/4 152', PAL.indigo], ['U-Net', '88.2 M · MSE', PAL.violet],
-    ['EMA', 'decay 0.999', PAL.plum], ['DDIM', '50 pasos', PAL.violet], ['FID · KID', 'test N=4 152', PAL.steel], ['SDEdit', 'imagen → ruido → imagen', PAL.plum],
+    ['Datos', '63 565 → 41 522', PAL.steel], ['Particiones', 'dHash · 33 218/4 152', PAL.indigo], ['U-Net', '88.2 M · MSE', 0xB8325C],
+    ['EMA', 'decay 0.999', PAL.plum], ['DDIM', '50 pasos', PAL.violet], ['FID · KID', 'test N=4 152', PAL.steel], ['SDEdit', 'imagen → ruido → imagen', 0xA8741A],
   ]
   const pts = [[-1.75, 3], [1.75, 3], [1.75, 1], [-1.75, 1], [-1.75, -1], [1.75, -1], [-1.75, -3]].map(([x, y]) => new THREE.Vector3(x, y, 0))
   const group = new THREE.Group(); st.scene.add(group)
