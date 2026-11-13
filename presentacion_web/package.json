@@ -1,0 +1,20 @@
+{
+  "name": "pc3-presentacion-web",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "evidencia": "node tools/prepare_evidence.mjs",
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "animejs": "4.5.0",
+    "reveal.js": "6.0.2",
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "vite": "8.3.6"
+  }
+}

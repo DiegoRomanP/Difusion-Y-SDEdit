@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Difusión de rostros anime</title>
+  <meta name="description" content="Modelo de difusión entrenado desde cero para generar rostros anime de 64×64: proceso, parámetros, resultados y SDEdit.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2319082D'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%235B3EA4' stroke-width='3'/%3E%3C/svg%3E">
+</head>
+<body>
+<div class="reveal">
+  <div class="slides">
+
+    <!-- ============ BLOQUE 1 · INTRODUCCIÓN (30 % · 2:05) ============ -->
+    <section data-block="intro" data-scene="noise">
+      <canvas class="viz bg" aria-hidden="true"></canvas>
+      <div class="copy center">
+        <p class="eyebrow">Computación Gráfica · PC3</p>
+        <h1>De ruido a <em>rostros anime</em></h1>
+        <p class="lead">Entrenamos desde cero un modelo de difusión que parte de ruido gaussiano y dibuja caras de 64×64 píxeles, y lo usamos también para transformar una imagen (SDEdit).</p>
+        <ul class="chips"><li>88.2 M parámetros</li><li>87 274 pasos</li><li>RTX 4070 Ti · 5.8 h</li></ul>
+      </div>
+      <aside class="notes">Gancho: una imagen que parte de puro ruido. Qué vamos a ver: la teoría, lo que construimos, cómo lo entrenamos, qué tan bien funciona y una extensión (SDEdit). (0:25)</aside>
+    </section>
+
+    <section data-block="intro" data-scene="chain">
+      <div class="split">
+        <div class="copy">
+          <p class="eyebrow">¿Qué es la difusión?</p>
+          <h2>Romper una imagen y <em>aprender a repararla</em></h2>
+          <ul class="points">
+            <li><b>Directo (sin red):</b> se añade ruido paso a paso con una fórmula cerrada.</li>
+            <li><b>Inverso (la red):</b> una U-Net predice el ruido de cada paso para quitarlo.</li>
+          </ul>
+          <p class="formula">x<sub>t</sub> = √ᾱ<sub>t</sub> · x<sub>0</sub> + √(1−ᾱ<sub>t</sub>) · ε</p>
+        </div>
+        <canvas class="viz" aria-label="Cadena de imágenes: de una cara nítida a ruido puro y de vuelta"></canvas>
+      </div>
+      <aside class="notes">Proceso directo = fórmula, no hay red. Proceso inverso = la red predice ε y la pérdida es MSE entre ε real y predicho. 1000 pasos con beta lineal 1e-4 a 0.02. (0:55)</aside>
+    </section>
+
+    <section data-block="intro" data-scene="pipeline">
+      <div class="split rev">
+        <canvas class="viz" aria-label="Flujo del proyecto de datos a evaluación y SDEdit"></canvas>
+        <div class="copy">
+          <p class="eyebrow">Lo que hicimos</p>
+          <h2>De los datos a <em>SDEdit</em></h2>
+          <ul class="points tight">
+            <li><b>Datos:</b> 63 565 imágenes, 22 043 duplicados fuera, particiones 33 218 / 4 152 / 4 152.</li>
+            <li><b>Modelo:</b> U-Net entrenada con EMA y muestreada con DDIM.</li>
+            <li><b>Evaluación:</b> FID, KID, diversidad y vecino en train.</li>
+            <li><b>Extensión:</b> SDEdit sobre una imagen, sin reentrenar.</li>
+            <li><b>Entregables:</b> scripts, ejecución local y notebook de Colab.</li>
+          </ul>
+        </div>
+      </div>
+      <aside class="notes">Anime Face Dataset v3. Los casi duplicados se agrupan con dHash invariante al reflejo y cada grupo va a una sola partición. Además de los pesos dejamos scripts reproducibles, un script para correrlo en cualquier máquina (usa GPU si hay) y un notebook de Colab. (0:45)</aside>
+    </section>
+
+    <!-- ============ BLOQUE 2 · PROCESO (60 % · 4:15) ============ -->
+    <section data-block="proceso" data-scene="unet">
+      <div class="split">
+        <div class="copy">
+          <p class="eyebrow">El problema y el modelo</p>
+          <h2>Una U-Net de <em>88.2 M</em> en 12 GB</h2>
+          <ul class="points">
+            <li><b>Problema 1:</b> los casi duplicados contaminan test → partición por grupos dHash.</li>
+            <li><b>Problema 2:</b> 12 GB de VRAM → fp16 y lote 32 (6.4 GiB de pico).</li>
+            <li><b>Red:</b> 4 bloques <code>[128, 256, 384, 512]</code>, autoatención a 16×16 y 8×8, saltos entre codificador y decodificador.</li>
+          </ul>
+        </div>
+        <canvas class="viz" aria-label="Esquema 3D de la U-Net con conexiones de salto"></canvas>
+      </div>
+      <aside class="notes">Sin partición por grupos, FID sería optimista porque test tendría copias de train. UNet2DModel de Diffusers. (0:45)</aside>
+    </section>
+
+    <section data-block="proceso" data-scene="paths">
+      <div class="split">
+        <div class="copy">
+          <p class="eyebrow">Parámetros, por qué y comparación</p>
+          <h2>Cada decisión tiene una <em>razón</em></h2>
+          <table class="cmp">
+            <thead><tr><th>Decisión</th><th>Por qué</th><th>Frente a</th></tr></thead>
+            <tbody>
+              <tr><td>DDIM · 50 pasos</td><td>20× menos evaluaciones</td><td>DDPM 1000</td></tr>
+              <tr><td>Pérdida MSE</td><td>objetivo de DDPM</td><td>Huber</td></tr>
+              <tr><td>EMA 0.999</td><td>muestras más estables</td><td>pesos crudos</td></tr>
+              <tr><td>Difusión</td><td>entrenamiento estable</td><td>GAN / VAE</td></tr>
+              <tr><td>LR 2e-4 · warmup 1000 → coseno</td><td>arranque estable, cierre fino</td><td>—</td></tr>
+              <tr><td>Lote 32 · fp16</td><td>cabe en 12 GB</td><td>—</td></tr>
+            </tbody>
+          </table>
+          <p class="note">Comparación de diseño: solo entrenamos una corrida, no hay cifras de las otras opciones.</p>
+        </div>
+        <canvas class="viz" aria-label="Trayectorias de muestreo: 1000 pasos frente a 50 pasos"></canvas>
+      </div>
+      <aside class="notes">AdamW, weight decay 1e-6, recorte de gradiente 1.0. EMA en CUDA: medido en una RTX 3060, 15.1 ms por imagen frente a 17.4 con EMA en CPU. Aclarar que no medimos FID de los otros modelos: es una comparación de diseño. DDIM reduce el costo de muestreo sin reentrenar. (0:55)</aside>
+    </section>
+
+    <section data-block="proceso" data-scene="curve">
+      <div class="copy wide">
+        <p class="eyebrow">Entrenamiento completo</p>
+        <h2>87 274 pasos, 84 épocas, <em>5.8 horas</em></h2>
+        <canvas class="viz chart" aria-label="Curva de MSE de entrenamiento y validación por paso"></canvas>
+        <figure class="strip">
+          <img src="evidencia/previews/step_000000.png" alt="Muestras en el paso 0: ruido"><figcaption>0</figcaption>
+          <img src="evidencia/previews/step_001000.png" alt="Muestras en el paso 1 000"><figcaption>1 k</figcaption>
+          <img src="evidencia/previews/step_005000.png" alt="Muestras en el paso 5 000"><figcaption>5 k</figcaption>
+          <img src="evidencia/previews/step_015000.png" alt="Muestras en el paso 15 000"><figcaption>15 k</figcaption>
+          <img src="evidencia/previews/step_040000.png" alt="Muestras en el paso 40 000"><figcaption>40 k</figcaption>
+          <img src="evidencia/previews/step_087274.png" alt="Muestras en el paso 87 274"><figcaption>87 k</figcaption>
+        </figure>
+        <p class="note">MSE de validación final 0.02388. Menor MSE no garantiza mejor FID.</p>
+      </div>
+      <aside class="notes">Las vistas previas usan DDIM 20 pasos y las mismas 16 semillas en todos los checkpoints: sirven para ver progreso, no para medir calidad. (0:45)</aside>
+    </section>
+
+    <section data-block="proceso" data-scene="results">
+      <div class="results">
+        <div class="copy">
+          <p class="eyebrow">Métricas y resultados finales</p>
+          <h2>Rostros generados desde <em>ruido puro</em></h2>
+          <div class="kpis">
+            <div><span class="n" data-to="10.10" data-dec="2">0</span><small>FID · test N=4 152</small></div>
+            <div><span class="n" data-to="0.00394" data-dec="5">0</span><small>KID ± 0.00046</small></div>
+            <div><span class="n" data-to="0.119" data-dec="3">0</span><small>SSIM entre muestras</small></div>
+            <div><span class="n" data-to="0.118" data-dec="3">0</span><small>s por imagen</small></div>
+          </div>
+          <p class="note">FID/KID usan Inception de fotos naturales: orientativos en anime. DDIM 50 pasos, pesos EMA.</p>
+        </div>
+        <div class="gallery">
+          <figure class="hero"><img src="evidencia/grid.png" alt="Cuadrícula de rostros anime generados"><figcaption>16 muestras (DDIM 50)</figcaption></figure>
+          <figure class="gif"><img src="evidencia/denoising.gif" alt="Proceso de eliminación de ruido de una muestra"><figcaption>ruido → rostro, paso a paso</figcaption></figure>
+          <figure class="near"><img src="evidencia/nearest_training.png" alt="Muestras generadas junto a su vecino más cercano en train"><figcaption>muestra ↔ vecino en train</figcaption></figure>
+          <div class="mosaic" id="mosaic" aria-label="Muestras generadas"></div>
+        </div>
+      </div>
+      <aside class="notes">FID 10.10, KID 0.00394. SSIM 0.119 entre generadas: poca repetición. Vecino en train a 8.9 de 64 bits dHash en promedio; no prueba ni descarta memorización. (0:50)</aside>
+    </section>
+
+    <section data-block="proceso" data-scene="sdedit">
+      <div class="split sd">
+        <div class="copy">
+          <p class="eyebrow">Extensión · SDEdit</p>
+          <h2>De una imagen al ruido y <em>de vuelta</em></h2>
+          <ul class="points tight">
+            <li>Se añade ruido con la <b>misma fórmula</b> hasta un paso intermedio.</li>
+            <li>Desde ahí se sigue el muestreo con los <b>mismos pesos</b>, sin reentrenar.</li>
+            <li>Fuerza <b>baja</b>: conserva la imagen. Fuerza <b>alta</b>: se acerca a una cara libre.</li>
+          </ul>
+          <p class="note">No conserva la identidad ni es traducción controlada: el modelo nunca vio fotos reales. Solo evaluación cualitativa.</p>
+        </div>
+        <div class="stack">
+          <canvas class="viz short" aria-label="Nivel de ruido en el tiempo para fuerzas 0.3, 0.6 y 0.9"></canvas>
+          <figure class="sdrow"><figcaption>fuerza 0.3</figcaption><img src="evidencia/sdedit/s30.png" alt="SDEdit con fuerza 0.3: original, ruido y resultado"></figure>
+          <figure class="sdrow"><figcaption>fuerza 0.6</figcaption><img src="evidencia/sdedit/s60.png" alt="SDEdit con fuerza 0.6: original, ruido y resultado"></figure>
+          <figure class="sdrow"><figcaption>fuerza 0.9</figcaption><img src="evidencia/sdedit/s90.png" alt="SDEdit con fuerza 0.9: original, ruido y resultado"></figure>
+          <p class="tag">original → ruido → imagen nueva</p>
+        </div>
+      </div>
+      <aside class="notes">SDEdit (Meng et al., 2021). Misma fórmula del proceso directo, pero parando en un paso intermedio; luego muestreo normal. Las tiras muestran la imagen de entrada, la imagen con ruido y la reconstrucción. La imagen de entrada de esta demo es de ejemplo (una muestra del propio modelo): se reemplaza con una foto real ejecutando tools/prepare_sdedit.py. Se puede reproducir con run/sdedit_proceso.py o con la sección 7 del notebook de Colab. (1:00)</aside>
+    </section>
+
+    <!-- ============ BLOQUE 3 · CIERRE (10 % · 0:40) ============ -->
+    <section data-block="cierre" data-scene="reform">
+      <canvas class="viz bg" aria-hidden="true"></canvas>
+      <div class="copy center">
+        <p class="eyebrow">Conclusiones</p>
+        <h2>Funciona, y sabemos <em>hasta dónde</em></h2>
+        <ul class="points tight">
+          <li>Un DDPM desde cero genera rostros variados: <b>FID 10.10</b>, <b>KID 0.0039</b>.</li>
+          <li>Los mismos pesos permiten <b>SDEdit</b> y quedan listos para <b>correr en local o en Colab</b>.</li>
+          <li>Límites: una sola corrida, Inception no es de anime, el vecino dHash no prueba memorización.</li>
+        </ul>
+      </div>
+      <aside class="notes">Cerrar con el mensaje: resultado sólido pero exploratorio. Entregamos scripts reproducibles, ejecución local con detección de GPU y notebook de Colab. Siguiente paso posible: una red de traducción foto→anime entrenada. (0:40)</aside>
+    </section>
+
+  </div>
+</div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
