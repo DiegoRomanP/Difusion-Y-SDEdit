@@ -28,7 +28,7 @@ la comparación aparecen como «pendientes»/«—», nunca como ceros o resulta
 ## Controles
 
 | Tecla | Acción |
-|---|---|
+| --- | --- |
 | ← / →, espacio | Anterior / siguiente; espacio avanza |
 | 1–7 | Ir a una escena principal |
 | Inicio / Fin | Portada / cierre |
@@ -58,7 +58,7 @@ Esto inicia **solo Vite en localhost**, sin entrenar modelos ni ejecutar el note
 Las dependencias y `package-lock.json` viven aquí; el proyecto Python mantiene su
 entorno y dependencias uv intactos.
 
-Para reconstruir el archivo autocontenido:
+ara reconstruir el archivo autocontenido:
 
 ```bash
 npm run build
