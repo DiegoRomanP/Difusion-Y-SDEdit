@@ -36,3 +36,7 @@ access_token
 *.safetensors
 *.zip
 
+
+# Salida del script de generación local
+run/output/
+run/output_sdedit/
