@@ -1,173 +1,115 @@
 # PC3: difusión para rostros de anime
 
-DDPM no condicionado en **PyTorch** que genera rostros anime de 64×64 desde ruido,
-entrenado con
-[Anime Face Dataset](https://www.kaggle.com/datasets/splcher/animefacedataset).
-Sobre esos pesos hay además una exploración **SDEdit**: partir de una foto real en vez
-de ruido.
+## Dónde está cada entregable
 
-**Resultado:** 87 274 updates en una RTX 4070 Ti, con **FID 10.099** y
-**KID 0.003942 ± 0.000463** sobre test (N = 4 152, DDIM 50). El detalle está en
-[docs/decisiones.md](docs/decisiones.md). Exposición: viernes 13 de noviembre de 2026.
+| Entregable                      | Archivo                                                                                                                                        |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Script del entrenamiento        | [`scripts/train.py`](scripts/train.py) (modelo en [`src/pc3/model.py`](src/pc3/model.py))                                                      |
+| Scripts de resultados           | [`scripts/generate_images.py`](scripts/generate_images.py) (imágenes) y [`scripts/evaluate_quality.py`](scripts/evaluate_quality.py) (FID/KID) |
+| Extensión SDEdit                | [`scripts/sdedit.py`](scripts/sdedit.py)                                                                                                       |
+| Presentación                    | [`presentacion_web/`](presentacion_web/)                                                                                                       |
+| Cambios y decisiones del modelo | [`docs/decisiones.md`](docs/decisiones.md)                                                                                                     |
+| Notebook de Colab               | [`colab/generar_imagenes.ipynb`](colab/generar_imagenes.ipynb)                                                                                 |
 
-## Entorno
+Los pesos (`best.safetensors`) no están en el repo por su tamaño.
 
-Se usa **uv** con Python 3.13. El equipo de referencia es una GPU NVIDIA de 12 GB con
-un driver compatible con CUDA 12.8.
+# Explicación de nuestro proyecto
 
-```bash
-uv sync --locked --extra cu128 --group dev     # GPU
-uv sync --locked --extra cpu --group dev       # sin GPU (solo pruebas)
-```
+Un modelo de difusión (DDPM) entrenado **desde cero** en PyTorch que convierte ruido en caras anime de 64×64. Con los mismos pesos se hace **SDEdit**: de una imagen a ruido y de vuelta a una cara nueva.
 
-Los extras `cpu` y `cu128` son excluyentes. No instalar con `pip`.
+**Resultado:** 87 274 pasos en una RTX 4070 Ti (5.8 h) · **FID 10.10** · **KID 0.0039** sobre 4 152 imágenes de test.
 
-## Un script por tarea
+## Evidencia
 
-Todos se ejecutan con `uv run python scripts/<script>.py --help`, que muestra el uso
-completo. La configuración tiene dos niveles:
+Todo sale de la corrida real `anime64_4070ti` y está en [`evidencia/`](evidencia/),
+junto con los datos crudos: [`metrics.json`](evidencia/metrics.json) (FID/KID), [`history.csv`](evidencia/history.csv) (pérdida en cada paso) y [`run.json`](evidencia/run.json) (configuración y hardware).
 
-- **`configs/proyecto.toml`**: datos, semilla, generación y evaluación. Es una sola y
-  queda fija; todos los scripts la leen solos.
-- **`configs/entrenamiento/<gpu>.toml`**: lo que depende de la GPU (lote, updates,
-  memoria, frecuencia de validación). Lo pide `train.py` con `--profile`. Para una GPU
-  nueva, `calibrate.py --hours N` lo genera solo.
+**Rostros generados desde ruido puro**: las 64 primeras de las 5 000 que se usaron para el FID, sin elegir a mano (DDIM 50 pasos, pesos EMA).
 
-| Script | Qué hace | Salida |
-|---|---|---|
-| `prepare_dataset.py` | Descarga el dataset (`--download`) y lo reparte en train/val/test sin casi duplicados entre particiones | `data/dataset_splits.json` |
-| `calibrate.py` | Prueba lote físico y ubicación de la EMA con datos sintéticos, elige lo más rápido que cabe en la VRAM y calcula los updates para `--hours` | `configs/entrenamiento/<gpu>.toml`, `reports/calibration/<gpu>.json` |
-| `train.py` | Entrena; Ctrl+C guarda y `--resume` continúa | `runs/<run>/` |
-| `generate_images.py` | Genera N caras con unos pesos y mide la **inferencia** | `images/`, `grid.png`, `denoising.gif`, `generation.json` |
-| `evaluate_quality.py` | FID/KID contra test, diversidad entre generadas y vecino más cercano en train | `quality.json`, `nearest_training.png` |
-| `sdedit.py` | Foto real → rostro anime a varias intensidades | `reports/sdedit/` |
+<img src="evidencia/muestras_64.png" width="512" alt="64 rostros anime generados por el modelo">
 
-Flujo completo:
+**De ruido a rostro**, paso a paso:
 
-```bash
-P=configs/entrenamiento/rtx4070ti_12gb.toml
-uv run python scripts/prepare_dataset.py --download
-uv run python scripts/calibrate.py --hours 6        # opcional: perfil para una GPU nueva
-uv run python scripts/train.py --profile $P --run anime64_4070ti
-uv run python scripts/generate_images.py --weights runs/anime64_4070ti/best.safetensors \
-    --output reports/samples/anime64_4070ti
-uv run python scripts/evaluate_quality.py --samples reports/samples/anime64_4070ti
-uv run python scripts/sdedit.py --weights runs/anime64_4070ti/best.safetensors \
-    --source data/real_faces_demo
-```
+<img src="evidencia/denoising.gif" width="320" alt="Animación: el ruido se convierte en un rostro">
 
-Para comprobar en minutos que todo corre, sin obtener resultados válidos: entrenar con
-`--profile configs/entrenamiento/ensayo_rapido.toml` (60 updates), generar con
-`--count 64` y evaluar con `--num-images 64`.
+**El modelo aprendiendo**: las mismas 16 semillas en distintos momentos del entrenamiento.
 
-## Usar los pesos sin entrenar
+| Paso 0 | 1 000 | 5 000 | 15 000 | 40 000 | 87 274 (final) |
+|---|---|---|---|---|---|
+| ![](evidencia/previews/step_000000.png) | ![](evidencia/previews/step_001000.png) | ![](evidencia/previews/step_005000.png) | ![](evidencia/previews/step_015000.png) | ![](evidencia/previews/step_040000.png) | ![](evidencia/previews/step_087274.png) |
 
-Con un `best.safetensors` ya entrenado (no está en el repo: `runs/` está en `.gitignore`)
-se puede generar y hacer SDEdit en cualquier máquina. Los scripts de `run/` usan la GPU
-si hay y si no la CPU, y no necesitan `uv sync`: declaran sus dependencias y `uv run`
-crea su propio entorno (en Linux el torch de PyPI ya trae CUDA). Se ejecutan desde `run/`:
 
-```bash
-cd run
-uv run run_on_machine.py ruta/a/best.safetensors 16        # 16 imágenes → run/output/
-uv run sdedit_proceso.py ruta/a/best.safetensors foto.jpg  # foto → ruido → imagen → run/output_sdedit/
-```
+## 1. Ver la presentación
 
-`sdedit_proceso.py` guarda por intensidad una tira con el proceso, su GIF y el resultado.
-En una CPU de 12 hilos, una imagen con DDIM de 50 pasos tarda unos 15 a 17 s.
-
-**Colab:** `colab/generar_imagenes.ipynb` carga los pesos (subida o Drive), genera una
-cuadrícula, muestra la eliminación de ruido y el proceso de SDEdit. No necesita el
-repositorio. Activar una GPU en el entorno de ejecución.
-
-## Presentación web
-
-`presentacion_web/` es una presentación de 9 diapositivas (7 min) con reveal.js, three.js
-y anime.js, hecha con la evidencia de `anime64_4070ti`.
+Requiere Node.js.
 
 ```bash
 cd presentacion_web
 npm install
-npm run dev          # http://127.0.0.1:5173 · la tecla S abre las notas del orador
-npm run build        # dist/
-npm run evidencia -- ruta/a/entrega_anime64_4070ti   # regenera public/evidencia/ (sin pesos)
+npm run dev        # abrir http://127.0.0.1:5173 · tecla S = notas del orador
 ```
 
-La columna de la derecha tiene dos demostraciones en vivo, **Generar 4 imágenes** y
-**SDEdit** (elegir una imagen). Necesitan el servidor local, que usa GPU si hay y si no CPU:
+Los dos cuadros de la derecha (**Generar 4 imágenes** y **SDEdit**) funcionan en vivo si
+en otra terminal se levanta el servidor con los pesos:
 
 ```bash
 cd run
-uv run serve_sdedit.py ruta/a/best.safetensors    # 127.0.0.1:8765
+uv run serve_sdedit.py ruta/a/best.safetensors
 ```
 
-Sin servidor el botón muestra «SIN SERVIDOR». El botón de flechas de la columna la pliega
-a una franja con un indicador por demostración. Las tiras de SDEdit de la diapositiva 8
-se regeneran con `../.venv/bin/python tools/prepare_sdedit.py <pesos> <foto>`.
+## 2. Generar imágenes con los pesos
 
-## Código
-
-```text
-src/pc3/            lo que comparten los scripts
-  config.py         lee configs/proyecto.toml y los perfiles de entrenamiento
-  data.py           recorte 64×64, dHash, lectura de particiones
-  model.py          U-Net, programa de ruido, EMA, guardar/cargar pesos
-  inference.py      muestreo DDIM/DDPM y SDEdit (capture=True devuelve el proceso)
-scripts/            un script por tarea (tabla de arriba)
-tools/monitor_gpu.py  uso de GPU durante el entrenamiento
-run/                generar y SDEdit en cualquier máquina, y servidor para la presentación
-colab/              notebook de Colab
-presentacion_web/   presentación web (reveal.js, three.js, anime.js)
-tests/test_core.py  piezas que, si fallan, invalidan el experimento sin dar error
-docs/decisiones.md  qué se entrenó, cómo se mide, resultados y SDEdit
-old/                presentación, notebook y respaldos del planteamiento anterior (la presentación vigente es presentacion_web/)
-```
-
-## Qué produce un entrenamiento (`runs/<run>/`)
-
-| Archivo | Contenido |
-|---|---|
-| `best.safetensors` | Pesos EMA con la menor MSE de validación: son los que se usan |
-| `last.safetensors` | Pesos EMA al terminar o pausar |
-| `latest.pt` | Estado completo para `--resume`; no sirve para inferencia |
-| `history.csv` | MSE de train y val, LR y tiempos |
-| `previews/` | 16 caras con semillas fijas en cada validación |
-| `run.json` | Perfil, estado, updates, mejor MSE y horas |
-
-Cada `.safetensors` guarda en sus metadatos la configuración de su U-Net, así que se
-carga sin depender del código que lo entrenó.
-
-## Datos
-
-`data/dataset_splits.json` **está versionado**: define qué imágenes son de test. No
-regenerarlo en otra máquina, porque eso podría pasar a train imágenes de test e
-invalidaría el FID. `prepare_dataset.py` se niega a sobrescribirlo.
-
-Las credenciales de Kaggle viven en el equipo que descarga
-([KaggleHub](https://github.com/Kaggle/kagglehub#authenticate)). Nunca van en el código,
-en argumentos ni en commits. Otra opción es extraer el dataset a mano en `data/raw/`.
-
-## Pruebas
+Solo requiere [uv](https://docs.astral.sh/uv/). Usa la GPU si existe; si no, la CPU.
 
 ```bash
-uv run pytest
-uv run ruff check src scripts tests tools
+cd run
+uv run run_on_machine.py ruta/a/best.safetensors 16        # 16 caras → run/output/
+uv run sdedit_proceso.py ruta/a/best.safetensors foto.jpg  # SDEdit → run/output_sdedit/
 ```
 
-Las pruebas comprueban:
+**Sin instalar nada:** abrir [`colab/generar_imagenes.ipynb`](colab/generar_imagenes.ipynb)
+en Colab, activar la GPU y subir `best.safetensors`.
 
-- que el proceso directo coincide con Diffusers;
-- que la arquitectura tiene los parámetros entrenados;
-- que reanudar mantiene el orden de los datos;
-- que los casi duplicados quedan en una sola partición;
-- que los pesos se guardan y cargan sin cambios;
-- que una semilla da la misma cara aunque cambie el lote.
+## 3. Reproducir el entrenamiento completo
 
-No entrenan nada en GPU.
+Requiere uv y una GPU NVIDIA de 12 GB (CUDA 12.8).
 
-## Atribución
+```bash
+uv sync --locked --extra cu128 --group dev
+P=configs/entrenamiento/rtx4070ti_12gb.toml
 
-Base docente: notebook `Diffusion_Models.ipynb` del curso (TensorFlow/CelebA, pérdida
-Huber). Este proyecto pasa a PyTorch, Anime Face Dataset y pérdida MSE, y añade la
-evaluación cuantitativa (FID/KID, diversidad, vecinos). La licencia del dataset no
-concede derechos sobre las imágenes generadas ni sobre las fotos usadas en SDEdit.
+uv run python scripts/prepare_dataset.py --download   # descarga y separa train/val/test
+uv run python scripts/train.py --profile $P --run anime64_4070ti
+uv run python scripts/generate_images.py --weights runs/anime64_4070ti/best.safetensors \
+    --output reports/samples/anime64_4070ti
+uv run python scripts/evaluate_quality.py --samples reports/samples/anime64_4070ti
+```
+
+- **Prueba rápida (minutos):** `--profile configs/entrenamiento/ensayo_rapido.toml`.
+- **Otra GPU:** `uv run python scripts/calibrate.py --hours 6` genera su perfil.
+- **Pausar y seguir:** Ctrl+C guarda; `--resume` continúa.
+- **Ayuda de cada script:** `--help`.
+
+`data/dataset_splits.json` define qué imágenes son de test. **No lo regeneres**, porque
+invalidaría el FID. Las credenciales de Kaggle van en tu equipo, nunca en el repo.
+
+
+## Estructura
+
+```text
+scripts/            un script por tarea (entrenar, generar, evaluar, SDEdit)
+src/pc3/            código compartido: modelo, datos, configuración, muestreo
+configs/            parámetros del proyecto y perfiles por GPU
+run/                generar, SDEdit y servidor de la presentación (sin instalar el proyecto)
+colab/              notebook de Colab
+presentacion_web/   presentación (reveal.js, three.js, anime.js)
+docs/decisiones.md  qué se entrenó, cómo se mide y por qué
+evidencia/          imágenes, métricas e historial de la corrida real
+tests/              pruebas: uv run pytest
+old/                versión anterior, ya no se usa
+```
+
+## Licencia
+
+El código está bajo licencia [MIT](LICENSE). La licencia del dataset no da derechos sobre
+las imágenes generadas ni sobre las fotos usadas en SDEdit.
