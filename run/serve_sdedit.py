@@ -10,12 +10,15 @@ Escucha solo en 127.0.0.1:8765. La presentación le envía una imagen y recibe e
 completo (original → ruido → imagen nueva) como PNG en base64 más un GIF. Responde:
   GET  /health   → {"ok": true, "device": ...}
   POST /sdedit   → cuerpo = bytes de la imagen; ?strength=0.6&seed=12345 opcionales
+  POST /generate → 4 imágenes desde ruido (semillas al azar, o ?seed=N). Responde en líneas
+                   JSON: primero {"first": cuadrícula de ruido}, luego {"frames": [...], "gif": ...}
 """
 
 import argparse
 import base64
 import io
 import json
+import secrets
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -29,7 +32,7 @@ import torch  # noqa: E402
 from PIL import Image  # noqa: E402
 
 from pc3.data import canonical_image  # noqa: E402
-from pc3.inference import sdedit, to_tensor  # noqa: E402
+from pc3.inference import sample_tensor, sdedit, to_pil, to_tensor  # noqa: E402
 from pc3.model import load_weights  # noqa: E402
 
 MAX_BODY = 20 * 1024 * 1024
@@ -40,6 +43,14 @@ def data_url(image: Image.Image, fmt: str) -> str:
     buffer = io.BytesIO()
     image.save(buffer, fmt)
     return f"data:image/{fmt.lower()};base64," + base64.b64encode(buffer.getvalue()).decode()
+
+
+def grid(images: list[Image.Image], columns: int = 2) -> Image.Image:
+    rows = -(-len(images) // columns)
+    canvas = Image.new("RGB", (columns * 64, rows * 64))
+    for index, image in enumerate(images):
+        canvas.paste(image, ((index % columns) * 64, (index // columns) * 64))
+    return canvas
 
 
 def make_handler(model, device, default_strength, steps):
@@ -68,6 +79,8 @@ def make_handler(model, device, default_strength, steps):
 
         def do_POST(self):
             url = urlparse(self.path)
+            if url.path == "/generate":
+                return self._generate(parse_qs(url.query))
             if url.path != "/sdedit":
                 return self._send(404, {"error": "no encontrado"})
             query = parse_qs(url.query)
@@ -92,6 +105,45 @@ def make_handler(model, device, default_strength, steps):
                 "frames": [data_url(f, "PNG") for f in sequence],
                 "gif": "data:image/gif;base64," + base64.b64encode(gif.getvalue()).decode(),
             })
+
+        def _generate(self, query):
+            """4 imágenes desde ruido; el proceso (cuadrícula 2x2 por paso) se envía como NDJSON."""
+            try:
+                seed = int(query.get("seed", [secrets.randbelow(10**6)])[0])
+            except ValueError:
+                return self._send(400, {"error": "semilla no válida"})
+            seeds = [seed + i for i in range(4)]
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()  # sin Content-Length: la conexión se cierra al terminar
+
+            def line(payload):
+                self.wfile.write(json.dumps(payload).encode() + b"\n")
+                self.wfile.flush()
+
+            try:
+                noise = [to_pil(torch.randn((3, 64, 64), generator=torch.Generator().manual_seed(k))) for k in seeds]
+                line({"first": data_url(grid(noise), "PNG")})  # el mismo ruido con el que arrancan las 4
+                with LOCK:
+                    runs = [
+                        sample_tensor(model, seeds=[k], steps=steps, device=device, capture=True)[1] for k in seeds
+                    ]
+                sequence = [grid([run[i] for run in runs]) for i in range(len(runs[0]))]
+                gif = io.BytesIO()
+                sequence[0].save(gif, "GIF", save_all=True, append_images=sequence[1:], duration=200, loop=0)
+                line({
+                    "frames": [data_url(f, "PNG") for f in sequence],
+                    "gif": "data:image/gif;base64," + base64.b64encode(gif.getvalue()).decode(),
+                })
+            except (BrokenPipeError, ConnectionResetError):
+                pass  # el navegador cerró la página
+            except Exception as error:
+                print("error generando:", error)
+                try:
+                    line({"error": "no se pudo generar"})
+                except OSError:
+                    pass
 
         def log_message(self, fmt, *args):
             print(self.address_string(), fmt % args)

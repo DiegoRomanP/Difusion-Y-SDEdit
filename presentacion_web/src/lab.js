@@ -1,30 +1,24 @@
 import { reduceMotion } from './common.js'
 
-// Cuadro persistente de SDEdit en vivo. Vive fuera de reveal.js: sigue igual al avanzar o retroceder.
+// Cuadros persistentes en vivo. Viven fuera de reveal.js: siguen igual al avanzar o retroceder.
 const SERVER = new URLSearchParams(location.search).get('server') || 'http://127.0.0.1:8765'
 const FRAME_MS = 420
 const MAX_BYTES = 20 * 1024 * 1024
 
-export function initLab() {
-  const canvas = document.getElementById('labCanvas')
-  const gif = document.getElementById('labGif')
-  const btn = document.getElementById('labBtn')
-  const file = document.getElementById('labFile')
+/** Cuadro + botón. `job({ signal, show })` hace la petición, puede llamar show(bitmap) con una vista previa
+ *  y devuelve { frames: [url PNG], gif }. */
+function createLab(root, job, { pickFile = false } = {}) {
+  const canvas = root.querySelector('canvas'), gif = root.querySelector('img')
+  const btn = root.querySelector('button'), input = root.querySelector('input')
   const ctx = canvas.getContext('2d')
   ctx.imageSmoothingEnabled = false
   let run = 0, raf = 0
 
   const label = (text, disabled) => { btn.textContent = text; btn.disabled = !!disabled }
-  const clear = () => ctx.clearRect(0, 0, 64, 64)
-  const showCanvas = () => { gif.hidden = true; canvas.hidden = false }
-  const flash = (text) => { label(text, true); setTimeout(() => run === current() && label('EMPEZAR'), 2800) }
-  const current = () => run
-
-  // recorte cuadrado central a 64×64, como en el entrenamiento (solo para la vista previa inmediata)
-  function drawCover(bitmap) {
-    const side = Math.min(bitmap.width, bitmap.height)
-    ctx.clearRect(0, 0, 64, 64)
-    ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, 64, 64)
+  const flash = (id, text) => { label(text, true); setTimeout(() => id === run && label('EMPEZAR'), 2800) }
+  const fit = (bitmap) => {
+    ctx.globalAlpha = 1; ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
   }
 
   function play(frames, id) {
@@ -33,10 +27,9 @@ export function initLab() {
       const t0 = performance.now(), total = frames.length * FRAME_MS
       const step = (now) => {
         if (id !== run) return resolve()
-        const t = Math.min(now - t0, total), f = Math.min(frames.length - 1, Math.floor(t / FRAME_MS))
-        const k = (t - f * FRAME_MS) / FRAME_MS
-        clear(); ctx.globalAlpha = 1; ctx.drawImage(frames[f], 0, 0)
-        if (f + 1 < frames.length) { ctx.globalAlpha = k; ctx.drawImage(frames[f + 1], 0, 0); ctx.globalAlpha = 1 }
+        const t = Math.max(0, Math.min(now - t0, total)), f = Math.min(frames.length - 1, Math.floor(t / FRAME_MS))
+        fit(frames[f])
+        if (f + 1 < frames.length) { ctx.globalAlpha = (t - f * FRAME_MS) / FRAME_MS; ctx.drawImage(frames[f + 1], 0, 0, canvas.width, canvas.height); ctx.globalAlpha = 1 }
         if (t >= total) return resolve()
         raf = requestAnimationFrame(step)
       }
@@ -44,19 +37,16 @@ export function initLab() {
     })
   }
 
-  async function start(image) {
+  async function start(arg) {
     const id = ++run
     cancelAnimationFrame(raf)
-    showCanvas()
+    gif.hidden = true; canvas.hidden = false
     label('EJECUTANDO', true)
     try {
-      drawCover(await createImageBitmap(image))
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 180000)
-      const res = await fetch(`${SERVER}/sdedit`, { method: 'POST', body: image, headers: { 'Content-Type': 'application/octet-stream' }, signal: controller.signal })
+      const timer = setTimeout(() => controller.abort(), 600000)
+      const data = await job(arg, { signal: controller.signal, show: (b) => id === run && fit(b) })
       clearTimeout(timer)
-      if (!res.ok) throw new Error(String(res.status))
-      const data = await res.json()
       const frames = await Promise.all(data.frames.map(async (u) => createImageBitmap(await (await fetch(u)).blob())))
       if (id !== run) return
       await play(frames, id)
@@ -66,16 +56,59 @@ export function initLab() {
       label('COMPLETO')
     } catch (error) {
       if (id !== run) return
-      console.warn('SDEdit en vivo:', error)
-      flash(error instanceof TypeError || error.name === 'AbortError' ? 'SIN SERVIDOR' : 'IMAGEN NO VÁLIDA')
+      console.warn('Demo en vivo:', error)
+      flash(id, error instanceof TypeError || error.name === 'AbortError' ? 'SIN SERVIDOR' : 'NO SE PUDO')
     }
   }
 
-  btn.addEventListener('click', () => { btn.blur(); file.value = ''; file.click() })
-  file.addEventListener('change', () => {
-    const image = file.files[0]
+  btn.addEventListener('click', () => {
+    btn.blur()
+    if (!pickFile) return start()
+    input.value = ''; input.click()
+  })
+  input?.addEventListener('change', () => {
+    const image = input.files[0]
     if (!image) return
-    if (!image.type.startsWith('image/') || image.size > MAX_BYTES) return flash('IMAGEN NO VÁLIDA')
+    if (!image.type.startsWith('image/') || image.size > MAX_BYTES) return flash(run, 'IMAGEN NO VÁLIDA')
     start(image)
   })
+}
+
+const bitmap = async (url) => createImageBitmap(await (await fetch(url)).blob())
+
+// SDEdit: la imagen elegida se muestra al instante y el servidor devuelve el proceso completo.
+async function sdeditJob(image, { signal, show }) {
+  show(await createImageBitmap(image, { resizeWidth: 64, resizeHeight: 64, resizeQuality: 'high' }))
+  const res = await fetch(`${SERVER}/sdedit`, { method: 'POST', body: image, headers: { 'Content-Type': 'application/octet-stream' }, signal })
+  if (!res.ok) throw new Error(String(res.status))
+  return res.json()
+}
+
+// Generar: el servidor envía primero el ruido inicial de las 4 y, al terminar, todo el proceso.
+async function generateJob(_, { signal, show }) {
+  const res = await fetch(`${SERVER}/generate`, { method: 'POST', signal })
+  if (!res.ok) throw new Error(String(res.status))
+  const reader = res.body.getReader(), decoder = new TextDecoder()
+  let buffer = '', result = null
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    let end
+    while ((end = buffer.indexOf('\n')) >= 0) {
+      const text = buffer.slice(0, end); buffer = buffer.slice(end + 1)
+      if (!text) continue
+      const message = JSON.parse(text)
+      if (message.error) throw new Error(message.error)
+      if (message.first) show(await bitmap(message.first))
+      if (message.frames) result = message
+    }
+  }
+  if (!result) throw new Error('respuesta incompleta')
+  return result
+}
+
+export function initLab() {
+  createLab(document.getElementById('labGen'), generateJob)
+  createLab(document.getElementById('labEdit'), sdeditJob, { pickFile: true })
 }

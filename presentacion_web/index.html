@@ -159,7 +159,7 @@
           <p class="tag">original → ruido → imagen nueva</p>
         </div>
       </div>
-      <aside class="notes">SDEdit (Meng et al., 2021). Misma fórmula del proceso directo, pero parando en un paso intermedio; luego muestreo normal. Las tiras muestran la imagen de entrada, la imagen con ruido y la reconstrucción. El cuadro de la derecha (presente en todas las diapositivas) lo ejecuta en vivo: botón EMPEZAR, se elige una imagen del dataset y se ve el proceso; requiere run/serve_sdedit.py en marcha. Las tiras de esta diapositiva son de ejemplo (una muestra del propio modelo); se regeneran con tools/prepare_sdedit.py. Se puede reproducir con run/sdedit_proceso.py o con la sección 7 del notebook de Colab. (1:00)</aside>
+      <aside class="notes">SDEdit (Meng et al., 2021). Misma fórmula del proceso directo, pero parando en un paso intermedio; luego muestreo normal. Las tiras muestran la imagen de entrada, la imagen con ruido y la reconstrucción. Los dos cuadros de la derecha (presentes en todas las diapositivas) se ejecutan en vivo: el de arriba genera 4 imágenes desde ruido y el de abajo hace SDEdit sobre una imagen del dataset que se elige; requieren run/serve_sdedit.py en marcha. Las tiras de esta diapositiva son de ejemplo (una muestra del propio modelo); se regeneran con tools/prepare_sdedit.py. Se puede reproducir con run/sdedit_proceso.py o con la sección 7 del notebook de Colab. (1:00)</aside>
     </section>
 
     <!-- ============ BLOQUE 3 · CIERRE (10 % · 0:40) ============ -->
@@ -179,10 +179,18 @@
 
   </div>
 </div>
-<aside id="lab" aria-label="Demostración en vivo de SDEdit">
-  <div class="frame"><canvas id="labCanvas" width="64" height="64"></canvas><img id="labGif" alt="Resultado completo del proceso de SDEdit" hidden></div>
-  <button id="labBtn" type="button">EMPEZAR</button>
-  <input id="labFile" type="file" accept="image/*" hidden>
+<aside id="lab" aria-label="Demostraciones en vivo">
+  <section class="lab" id="labGen">
+    <p class="cap">Generar · 4 imágenes</p>
+    <div class="frame"><canvas width="128" height="128"></canvas><img hidden alt="Resultado completo de las 4 imágenes generadas"></div>
+    <button type="button">EMPEZAR</button>
+  </section>
+  <section class="lab" id="labEdit">
+    <p class="cap">SDEdit · tu imagen</p>
+    <div class="frame"><canvas width="64" height="64"></canvas><img hidden alt="Resultado completo del proceso de SDEdit"></div>
+    <button type="button">EMPEZAR</button>
+    <input type="file" accept="image/*" hidden>
+  </section>
 </aside>
 </div>
 <script type="module" src="/src/main.js"></script>
