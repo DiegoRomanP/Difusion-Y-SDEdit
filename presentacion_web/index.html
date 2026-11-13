@@ -8,6 +8,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2319082D'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%235B3EA4' stroke-width='3'/%3E%3C/svg%3E">
 </head>
 <body>
+<div id="app">
 <div class="reveal">
   <div class="slides">
 
@@ -158,7 +159,7 @@
           <p class="tag">original → ruido → imagen nueva</p>
         </div>
       </div>
-      <aside class="notes">SDEdit (Meng et al., 2021). Misma fórmula del proceso directo, pero parando en un paso intermedio; luego muestreo normal. Las tiras muestran la imagen de entrada, la imagen con ruido y la reconstrucción. La imagen de entrada de esta demo es de ejemplo (una muestra del propio modelo): se reemplaza con una foto real ejecutando tools/prepare_sdedit.py. Se puede reproducir con run/sdedit_proceso.py o con la sección 7 del notebook de Colab. (1:00)</aside>
+      <aside class="notes">SDEdit (Meng et al., 2021). Misma fórmula del proceso directo, pero parando en un paso intermedio; luego muestreo normal. Las tiras muestran la imagen de entrada, la imagen con ruido y la reconstrucción. El cuadro de la derecha (presente en todas las diapositivas) lo ejecuta en vivo: botón EMPEZAR, se elige una imagen del dataset y se ve el proceso; requiere run/serve_sdedit.py en marcha. Las tiras de esta diapositiva son de ejemplo (una muestra del propio modelo); se regeneran con tools/prepare_sdedit.py. Se puede reproducir con run/sdedit_proceso.py o con la sección 7 del notebook de Colab. (1:00)</aside>
     </section>
 
     <!-- ============ BLOQUE 3 · CIERRE (10 % · 0:40) ============ -->
@@ -177,6 +178,12 @@
     </section>
 
   </div>
+</div>
+<aside id="lab" aria-label="Demostración en vivo de SDEdit">
+  <div class="frame"><canvas id="labCanvas" width="64" height="64"></canvas><img id="labGif" alt="Resultado completo del proceso de SDEdit" hidden></div>
+  <button id="labBtn" type="button">EMPEZAR</button>
+  <input id="labFile" type="file" accept="image/*" hidden>
+</aside>
 </div>
 <script type="module" src="/src/main.js"></script>
 </body>

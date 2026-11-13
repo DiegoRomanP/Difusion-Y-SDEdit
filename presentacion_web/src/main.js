@@ -4,10 +4,11 @@ import 'reveal.js/reveal.css'
 import './styles.css'
 import { scenes } from './scenes/index.js'
 import { transition } from './transitions.js'
+import { initLab } from './lab.js'
 
 const deck = new Reveal({
   width: 1280, height: 720, margin: 0.02, hash: true, controls: true, progress: true, slideNumber: 'c/t',
-  transition: 'none', backgroundTransition: 'none', center: false, touch: true, plugins: [Notes],
+  embedded: true, transition: 'none', backgroundTransition: 'none', center: false, touch: true, plugins: [Notes],
 })
 
 const live = new Map()
@@ -25,3 +26,5 @@ deck.on('slidechanged', ({ previousSlide, currentSlide, indexh }) => {
   activate(currentSlide)
   transition(previousSlide, currentSlide, indexh >= deck.getIndices(previousSlide).h)
 })
+
+initLab()

@@ -3,8 +3,8 @@ import { reduceMotion } from './common.js'
 
 const ORDER = { intro: 0, proceso: 1, cierre: 2 }
 const curtain = Object.assign(document.createElement('div'), { id: 'curtain' })
-Object.assign(curtain.style, { position: 'fixed', inset: 0, zIndex: 50, pointerEvents: 'none', opacity: 0 })
-document.body.append(curtain)
+Object.assign(curtain.style, { position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'none', opacity: 0 })
+document.querySelector('.reveal').append(curtain)
 
 /** Transición lenta entre diapositivas: dentro de un bloque, fundido y entrada escalonada; entre bloques, barrido de color más largo. */
 export function transition(prev, next, forward) {
