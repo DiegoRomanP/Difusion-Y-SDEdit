@@ -60,6 +60,51 @@ Para comprobar en minutos que todo corre, sin obtener resultados válidos: entre
 `--profile configs/entrenamiento/ensayo_rapido.toml` (60 updates), generar con
 `--count 64` y evaluar con `--num-images 64`.
 
+## Usar los pesos sin entrenar
+
+Con un `best.safetensors` ya entrenado (no está en el repo: `runs/` está en `.gitignore`)
+se puede generar y hacer SDEdit en cualquier máquina. Los scripts de `run/` usan la GPU
+si hay y si no la CPU, y no necesitan `uv sync`: declaran sus dependencias y `uv run`
+crea su propio entorno (en Linux el torch de PyPI ya trae CUDA). Se ejecutan desde `run/`:
+
+```bash
+cd run
+uv run run_on_machine.py ruta/a/best.safetensors 16        # 16 imágenes → run/output/
+uv run sdedit_proceso.py ruta/a/best.safetensors foto.jpg  # foto → ruido → imagen → run/output_sdedit/
+```
+
+`sdedit_proceso.py` guarda por intensidad una tira con el proceso, su GIF y el resultado.
+En una CPU de 12 hilos, una imagen con DDIM de 50 pasos tarda unos 15 a 17 s.
+
+**Colab:** `colab/generar_imagenes.ipynb` carga los pesos (subida o Drive), genera una
+cuadrícula, muestra la eliminación de ruido y el proceso de SDEdit. No necesita el
+repositorio. Activar una GPU en el entorno de ejecución.
+
+## Presentación web
+
+`presentacion_web/` es una presentación de 9 diapositivas (7 min) con reveal.js, three.js
+y anime.js, hecha con la evidencia de `anime64_4070ti`.
+
+```bash
+cd presentacion_web
+npm install
+npm run dev          # http://127.0.0.1:5173 · la tecla S abre las notas del orador
+npm run build        # dist/
+npm run evidencia -- ruta/a/entrega_anime64_4070ti   # regenera public/evidencia/ (sin pesos)
+```
+
+La columna de la derecha tiene dos demostraciones en vivo, **Generar 4 imágenes** y
+**SDEdit** (elegir una imagen). Necesitan el servidor local, que usa GPU si hay y si no CPU:
+
+```bash
+cd run
+uv run serve_sdedit.py ruta/a/best.safetensors    # 127.0.0.1:8765
+```
+
+Sin servidor el botón muestra «SIN SERVIDOR». El botón de flechas de la columna la pliega
+a una franja con un indicador por demostración. Las tiras de SDEdit de la diapositiva 8
+se regeneran con `../.venv/bin/python tools/prepare_sdedit.py <pesos> <foto>`.
+
 ## Código
 
 ```text
@@ -67,12 +112,15 @@ src/pc3/            lo que comparten los scripts
   config.py         lee configs/proyecto.toml y los perfiles de entrenamiento
   data.py           recorte 64×64, dHash, lectura de particiones
   model.py          U-Net, programa de ruido, EMA, guardar/cargar pesos
-  inference.py      muestreo DDIM/DDPM y SDEdit
+  inference.py      muestreo DDIM/DDPM y SDEdit (capture=True devuelve el proceso)
 scripts/            un script por tarea (tabla de arriba)
 tools/monitor_gpu.py  uso de GPU durante el entrenamiento
+run/                generar y SDEdit en cualquier máquina, y servidor para la presentación
+colab/              notebook de Colab
+presentacion_web/   presentación web (reveal.js, three.js, anime.js)
 tests/test_core.py  piezas que, si fallan, invalidan el experimento sin dar error
 docs/decisiones.md  qué se entrenó, cómo se mide, resultados y SDEdit
-old/                presentación, notebook y respaldos del planteamiento anterior
+old/                presentación, notebook y respaldos del planteamiento anterior (la presentación vigente es presentacion_web/)
 ```
 
 ## Qué produce un entrenamiento (`runs/<run>/`)
