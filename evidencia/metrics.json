@@ -1,0 +1,166 @@
+{
+  "schema": 1,
+  "label": "anime64 4070ti 87272 steps",
+  "protocol": {
+    "manifest_sha256": "f6a26f1b634ade02629d44045092a180f8649b78d3fbdd5171722e7c16bca275",
+    "split": "test",
+    "num_images": 4152,
+    "real_subset_sha256": "a76c0d3ec4ff07ecf9ca9dd3066abd980bc0d6b01a78d70a0d7a20e0d0e7f9f7",
+    "image_size": 64,
+    "extractor": "torch-fidelity/inception-v3-compat/2048",
+    "input": "RGB uint8 [0,255]",
+    "resize": "TorchMetrics Inception interno 299x299",
+    "kid_subset_size": 1000,
+    "kid_subsets": 50,
+    "kid_seed": 2026,
+    "sampler": "ddim",
+    "sampling_steps": 50,
+    "generation_seed": 12345,
+    "generation_batch_size": 32,
+    "generation_amp": true,
+    "pc3_source_sha256": "25ae536b6e9506edeb6e1a08d145b5d7d040eeea887c46b292f192d0243fa530",
+    "versions": {
+      "torch": "2.11.0+cu128",
+      "torchvision": "0.26.0+cu128",
+      "torchmetrics": "1.9.0",
+      "torch-fidelity": "0.4.0",
+      "pillow": "13.0.0"
+    }
+  },
+  "fid": 10.09938907623291,
+  "kid_mean": 0.0039422656409442425,
+  "kid_std": 0.0004629662726074457,
+  "seconds_per_image": 0.1175975537200109,
+  "images_per_second": 8.503578249432884,
+  "peak_vram_gib": 1.0323572158813477,
+  "provenance": {
+    "run_id": "13f9cbfe-64b9-47e1-a483-55e9ad015cbf",
+    "initialization": "random",
+    "contract": {
+      "seed": 2026,
+      "image_size": 64,
+      "arch": "anime64",
+      "dataset_handle": "splcher/animefacedataset/versions/3",
+      "pretrained_id": "",
+      "pretrained_revision": "",
+      "batch_size": 32,
+      "accumulation_steps": 1,
+      "max_steps": 87274,
+      "learning_rate": 0.0002,
+      "weight_decay": 1e-06,
+      "warmup_steps": 1000,
+      "ema_decay": 0.999,
+      "ema_device": "cuda",
+      "amp": true,
+      "gradient_checkpointing": false,
+      "num_workers": 2,
+      "log_every": 50,
+      "checkpoint_every": 1000,
+      "validate_every": 1000,
+      "validation_images": 256
+    },
+    "manifest_sha256": "f6a26f1b634ade02629d44045092a180f8649b78d3fbdd5171722e7c16bca275",
+    "step": 87274,
+    "weights": "ema",
+    "validation_mse": 0.023881721310317516,
+    "model_config": {
+      "sample_size": 64,
+      "in_channels": 3,
+      "out_channels": 3,
+      "center_input_sample": false,
+      "time_embedding_type": "positional",
+      "time_embedding_dim": null,
+      "freq_shift": 0,
+      "flip_sin_to_cos": true,
+      "down_block_types": [
+        "DownBlock2D",
+        "DownBlock2D",
+        "AttnDownBlock2D",
+        "AttnDownBlock2D"
+      ],
+      "mid_block_type": "UNetMidBlock2D",
+      "up_block_types": [
+        "AttnUpBlock2D",
+        "AttnUpBlock2D",
+        "UpBlock2D",
+        "UpBlock2D"
+      ],
+      "block_out_channels": [
+        128,
+        256,
+        384,
+        512
+      ],
+      "layers_per_block": 2,
+      "mid_block_scale_factor": 1,
+      "downsample_padding": 1,
+      "downsample_type": "conv",
+      "upsample_type": "conv",
+      "dropout": 0.0,
+      "act_fn": "silu",
+      "attention_head_dim": 64,
+      "norm_num_groups": 32,
+      "attn_norm_num_groups": null,
+      "norm_eps": 1e-05,
+      "resnet_time_scale_shift": "default",
+      "add_attention": true,
+      "class_embed_type": null,
+      "num_class_embeds": null,
+      "num_train_timesteps": null,
+      "_use_default_values": [
+        "upsample_type",
+        "mid_block_type",
+        "num_train_timesteps",
+        "class_embed_type",
+        "time_embedding_dim",
+        "attn_norm_num_groups",
+        "num_class_embeds",
+        "add_attention",
+        "downsample_type",
+        "dropout",
+        "resnet_time_scale_shift"
+      ],
+      "_class_name": "UNet2DModel"
+    }
+  },
+  "run_summary": {
+    "run_id": "13f9cbfe-64b9-47e1-a483-55e9ad015cbf",
+    "status": "completed",
+    "completed_steps": 87274,
+    "consumed_images": 2792768,
+    "wall_seconds": 20789.3785559,
+    "parameter_count": 88217219,
+    "hardware": {
+      "device": "cuda",
+      "torch": "2.11.0+cu128",
+      "name": "NVIDIA GeForce RTX 4070 Ti",
+      "total_vram_gib": 11.99365234375
+    },
+    "versions": {
+      "python": "3.13.18",
+      "pc3_source_sha256": "25ae536b6e9506edeb6e1a08d145b5d7d040eeea887c46b292f192d0243fa530",
+      "torch": "2.11.0+cu128",
+      "torchvision": "0.26.0+cu128",
+      "diffusers": "0.42.1",
+      "safetensors": "0.8.0",
+      "pillow": "13.0.0",
+      "numpy": "2.5.4"
+    }
+  },
+  "generation": {
+    "hardware": {
+      "device": "cuda",
+      "torch": "2.11.0+cu128",
+      "name": "NVIDIA GeForce RTX 4070 Ti",
+      "total_vram_gib": 11.99365234375
+    },
+    "count": 5000,
+    "source_hash": "1ed203c4c3d42ef5a39ba9ef841264ca0d5c39be67271ba8780fa5dc8036a974"
+  },
+  "warnings": [
+    "FID/KID usan Inception entrenada en imágenes naturales: su validez en anime es limitada.",
+    "KID std describe subconjuntos; no es un IC ni variabilidad entre entrenamientos.",
+    "Menor MSE de ruido no garantiza menor FID ni mejor calidad visual.",
+    "Solo N=4152: comparación exploratoria; FID es sensible al tamaño muestral."
+  ]
+}
